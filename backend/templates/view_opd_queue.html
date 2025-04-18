@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OPD Queue</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>OPD Queue</h1>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Token Number</th>
+                    <th>Patient Name</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <th>Check-in Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in queue %}
+                <tr>
+                    <td>{{ item['token_number'] }}</td>
+                    <td>{{ item['name'] }}</td>
+                    <td>{{ item['department'] }}</td>
+                    <td>{{ item['status'] }}</td>
+                    <td>{{ item['check_in_time'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <br>
+        <a href="{{ url_for('join_opd_queue') }}" class="btn btn-primary">Join OPD Queue</a>
+        <br>
+        <a href="{{ url_for('list_patients') }}" class="btn btn-secondary">Back to Patient List</a>
+    </div>
+</body>
+</html>

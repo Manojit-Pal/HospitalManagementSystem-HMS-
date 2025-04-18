@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Inventory Item</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Add Inventory Item</h1>
+        <form method="POST" action="{{ url_for('add_inventory_item') }}">
+            <div class="form-group">
+                <label for="item_name">Item Name:</label>
+                <input type="text" class="form-control" id="item_name" name="item_name" required>
+            </div>
+            <div class="form-group">
+                <label for="quantity">Quantity:</label>
+                <input type="number" class="form-control" id="quantity" name="quantity" value="0" required>
+            </div>
+            <div class="form-group">
+                <label for="unit">Unit (e.g., tablets, vials):</label>
+                <input type="text" class="form-control" id="unit" name="unit">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Item</button>
+        </form>
+        <br>
+        <a href="{{ url_for('view_inventory') }}" class="btn btn-secondary">View Inventory</a>
+        <br>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Main</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Current Admissions</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Current Admissions</h1>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Admission ID</th>
+                    <th>Patient Name</th>
+                    <th>Bed ID</th>
+                    <th>Admission Time</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for admission in admissions %}
+                <tr>
+                    <td>{{ admission['admission_id'][:8] }}</td>
+                    <td>{{ admission['patient_name'] }}</td>
+                    <td>{{ admission['bed_id'][:8] }}</td>
+                    <td>{{ admission['admission_time'] }}</td>
+                    <td>{{ admission['status'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <br>
+        <a href="{{ url_for('admit_patient') }}" class="btn btn-primary">Admit New Patient</a>
+        <br>
+        <a href="{{ url_for('list_beds') }}" class="btn btn-secondary">View Bed Availability</a>
+        <br>
+        <a href="{{ url_for('list_patients') }}" class="btn btn-secondary">View Patients</a>
+        <br>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Main</a>
+    </div>
+</body>
+</html>

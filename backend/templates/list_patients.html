@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hospital Management System - Registered Patients</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Basic color scheme */
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --light-bg: #f8f9fa;
+            --dark-text: #343a40;
+        }
+        body {
+            font-family: sans-serif;
+            color: var(--dark-text);
+            background-color: var(--light-bg);
+        }
+        .navbar {
+            background-color: white !important;
+            border-bottom: 1px solid #eee;
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+            border-color: #4e555b;
+        }
+        .card {
+            margin-bottom: 15px;
+            border: 1px solid #eee;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid #eee;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="{{ url_for('index') }}">HMS</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('add_patient') }}">Register Patient</a></li>
+                <li class="nav-item active"><a class="nav-link" href="{{ url_for('list_patients') }}">View Patients <span class="sr-only">(current)</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('join_opd_queue') }}">OPD Queue</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('list_beds') }}">Bed Availability</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('admit_patient') }}">Admit Patient</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('view_inventory') }}">Inventory</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <h1>Registered Patients</h1>
+        {% for patient in patients %}
+        <div class="card">
+            <div class="card-header">{{ patient['name'] }} (ID: {{ patient['patient_id'][:8] }})</div>
+            <div class="card-body">
+                <p class="card-text"><strong>Age:</strong> {{ patient['age'] }}</p>
+                <p class="card-text"><strong>Gender:</strong> {{ patient['gender'] }}</p>
+                <p class="card-text"><strong>Contact:</strong> {{ patient['contact_number'] }}</p>
+                <p class="card-text"><strong>Address:</strong> {{ patient['address'] }}</p>
+                <p class="card-text"><strong>Emergency Contact:</strong> {{ patient['emergency_contact'] }}</p>
+                <p class="card-text"><strong>Blood Group:</strong> {{ patient['blood_group'] }}</p>
+                <p class="card-text"><strong>Medical History:</strong> {{ patient['medical_history'] }}</p>
+                <a href="#" class="btn btn-sm btn-outline-primary">View Details</a> </div>
+        </div>
+        {% endfor %}
+        <br>
+        <a href="{{ url_for('add_patient') }}" class="btn btn-primary">Register New Patient</a>
+    </div>
+</body>
+</html>
