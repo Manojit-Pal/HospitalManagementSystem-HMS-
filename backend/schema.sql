@@ -96,5 +96,10 @@ CREATE TABLE patient_profiles (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+-- git status
+-- git add .
+-- git commit -m "Improved inventory UI and fixed duplicate doctor cards"
+-- git push origin main
+
 -- Initialize database via Flask CLI
 -- flask --app app.py initdb

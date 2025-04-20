@@ -1,23 +1,5 @@
 // static/script.js - Corrected version with debug logs for Now Serving section
 
-// Declare global variables accessible to all functions in this file.
-// These variables (like systemStatsUrl, etc.) and 'admissionsChart'
-// are expected to be defined in a script block in your index.html
-// file using Flask's Jinja2 'url_for' function *before* this script file is loaded.
-// Example script block to include in your index.html (usually just before linking this file):
-// <script>
-//     const systemStatsUrl = "{{ url_for('get_system_stats') }}";
-//     const recentActivitiesUrl = "{{ url_for('get_recent_activities') }}";
-//     const nowServingUrl = "{{ url_for('get_now_serving') }}";
-//     const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
-//     // If you need the OPD status update URL in script.js, add it here too:
-//     // const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
-//
-//     // Declare admissionsChart globally so it can be accessed by fetchAdmissionsDataForChart
-//     var admissionsChart;
-// </script>
-
-
 // --- Fetch Functions ---
 
 // Function to fetch and display system stats
@@ -48,11 +30,6 @@ function fetchSystemStats() {
         });
 }
 
-// Optional: Refresh the stats periodically (e.g., every 60 seconds)
-// Uncomment the line below if you want auto-refresh
-// setInterval(fetchSystemStats, 60000);
-
-
 // Function to fetch and display recent activities
 function fetchRecentActivities() {
     // Use the global variable defined in index.html
@@ -71,11 +48,6 @@ function fetchRecentActivities() {
         })
         .catch(error => { console.error('Error fetching recent activities:', error); document.getElementById('recentPatientsList').innerHTML = '<li class="list-group-item text-center text-danger">Error loading patients</li>'; document.getElementById('recentAdmissionsList').innerHTML = '<li class="list-group-item text-center text-danger">Error loading admissions</li>'; });
 }
-
-// Optional: Refresh the recent activities periodically
-// setInterval(fetchRecentActivities, 30000); // Refresh every 30 seconds (optional)
-
-
 
 // Function to fetch and display now serving data
 function fetchNowServing() {
@@ -105,7 +77,6 @@ function fetchNowServing() {
                         `;
                 return;
             }
-
 
             if (data && data.length > 0) {
                 data.forEach(item => {
@@ -143,9 +114,6 @@ function fetchNowServing() {
                             `;
         });
 }
-// Optional: Refresh the now serving list periodically
-// setInterval(fetchNowServing, 5000); // Refresh every 5 seconds (adjust as needed)
-
 
 // Function to fetch admissions data and update the chart
 function fetchAdmissionsDataForChart() {
@@ -390,8 +358,147 @@ function updateChartColors(isDarkMode) {
     }
 }
 
+// ... existing code in this script block (AOS, Loader, Scroll Top, Dark Mode) ...
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    // --- Chatbot Toggle Logic ---
+    const chatbotToggleBtn = document.getElementById('chatbot-toggle-btn');
+    const chatWindow = document.getElementById('chat-window');
+    const chatCloseBtn = document.getElementById('chat-close-btn');
+    const chatBody = document.getElementById('chat-body'); // Get chat body here too
+
+    // Check if the toggle elements exist before adding listeners
+    if (chatbotToggleBtn && chatWindow && chatCloseBtn && chatBody) {
+        chatbotToggleBtn.addEventListener('click', function () {
+            const isHidden = chatWindow.style.display === 'none' || chatWindow.style.display === ''; // Check for initial state too
+            chatWindow.style.display = isHidden ? 'flex' : 'none'; // Use 'flex'
+            chatbotToggleBtn.style.display = isHidden ? 'none' : 'flex'; // Toggle button visibility
+
+            if (isHidden) { // If opening
+                // Scroll to the bottom of the chat window
+                chatBody.scrollTop = chatBody.scrollHeight;
+            }
+        });
+
+        chatCloseBtn.addEventListener('click', function () {
+            chatWindow.style.display = 'none'; // Hide window
+            chatbotToggleBtn.style.display = 'flex'; // Show toggle button
+        });
+    } else {
+        console.error("Chatbot toggle UI elements not found!");
+    }
+    // --- End Chatbot Toggle Logic ---
+
+
+    // --- Chatbot Message Sending and Display Logic ---
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    // chatBody is already defined above
+
+    // Check if chat interaction elements exist
+    if (chatBody && chatInput && chatSendBtn) {
+
+        // Function to display a message
+        function displayMessage(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('chat-message', sender + '-message');
+            messageElement.textContent = message; // Use textContent for security
+            chatBody.appendChild(messageElement);
+            chatBody.scrollTop = chatBody.scrollHeight; // Scroll down
+        }
+
+        // Function to send a message to the backend
+        async function sendMessage(message) {
+            displayMessage(message, 'user'); // Display user message
+            chatInput.value = ''; // Clear input
+
+            const chatbotEndpoint = '/chatbot/send_message'; // Your backend endpoint
+
+            try {
+                const response = await fetch(chatbotEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add CSRF token header if needed for Flask-WTF or similar
+                        // 'X-CSRFToken': '{{ csrf_token() }}' // Example if using Flask templates directly
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const botResponse = data.response; // Adjust if your backend sends a different structure
+
+                if (botResponse) {
+                    displayMessage(botResponse, 'bot'); // Display bot response
+                } else {
+                    displayMessage('Received empty response from bot.', 'bot');
+                }
+
+            } catch (error) {
+                console.error('Error sending/receiving chatbot message:', error);
+                displayMessage('Sorry, something went wrong. Please try again later.', 'bot'); // User-friendly error
+            }
+        }
+
+        // Event listener for send button
+        chatSendBtn.addEventListener('click', function () {
+            const message = chatInput.value.trim();
+            if (message) {
+                sendMessage(message);
+            }
+        });
+
+        // Event listener for Enter key
+        chatInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent default newline/submit
+                const message = chatInput.value.trim();
+                if (message) {
+                    sendMessage(message);
+                }
+            }
+        });
+
+        // Optional: Display initial welcome message via JS if needed,
+        // although it's already in your HTML. Remove from HTML if adding here.
+        // displayMessage('Welcome! How can I help you today?', 'bot');
+
+    } else {
+        console.error("Chatbot message UI elements not found!");
+    }
+    // --- End Chatbot Message Sending and Display Logic ---
+
+
+    // --- Scroll-to-Top Button Logic ---
+    const scrollTopBtn = document.getElementById('scrollTopBtn');
+
+    if (scrollTopBtn) {
+        // Show button when scrolling down
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 200) { // Show after scrolling down 200px
+                scrollTopBtn.style.display = 'block'; // Or 'inline-block' or 'flex' depending on styling
+            } else {
+                scrollTopBtn.style.display = 'none';
+            }
+        });
+
+        // Scroll to top when clicked
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+    // --- End Scroll-to-Top Button Logic ---
+
+}); 
+
+// End of DOMContentLoaded listener
 
 // Optional: Periodical refreshes (remove if not desired)
-// setInterval(fetchSystemStats, 60000); // Refresh stats every 60 seconds
-// setInterval(fetchRecentActivities, 30000); // Refresh recent activities every 30 seconds
-// setInterval(fetchNowServing, 5000); // Refresh now serving every 5 seconds
+setInterval(fetchSystemStats, 60000); // Refresh stats every 60 seconds
+setInterval(fetchRecentActivities, 30000); // Refresh recent activities every 30 seconds
+setInterval(fetchNowServing, 5000); // Refresh now serving every 5 seconds

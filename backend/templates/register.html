@@ -325,14 +325,11 @@
                 const confirmInput = document.getElementById('confirm_password');
                 confirmInput.setCustomValidity("");
             }
-
-
             // If the step is valid, all inputs are already marked is-valid (except potentially password mismatch case handled above)
             // If the step is invalid, at least one input is marked is-invalid and its feedback is implicitly shown by Bootstrap
 
             return stepValid; // Return the final validity status for the step
         }
-
 
         // Function to move to the next step
         function nextStep() {
@@ -359,7 +356,6 @@
                 showStep(currentStep - 1);
             }
         }
-
         // Function to dynamically render fields for Step 2 based on user type
         function renderOtherDetails() {
             const container = document.getElementById("otherDetailsContainer");
@@ -461,7 +457,6 @@
                 icon.classList.toggle("fa-eye-slash");
             }
         }
-
 
         // --- Initial Setup ---
         // Show the first step when the page loads
