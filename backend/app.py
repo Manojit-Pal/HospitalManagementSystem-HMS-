@@ -1,14 +1,38 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 import sqlite3
 import uuid
 import os
+import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import jsonify # Make sure jsonify is imported at the top
 from datetime import datetime, date # Make sure datetime and date are imported
 import pytz
 
 load_dotenv()  # Load environment variables from .env
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if not GEMINI_API_KEY:
+    print("Warning: GEMINI_API_KEY environment variable not set. Chatbot will return an error.")
+    # In a production app, you might want to handle this more robustly
+
+try:
+    genai.configure(api_key=GEMINI_API_KEY)
+    # Configure the generative model
+    # Choose a model that's suitable for your use case (e.g., 'gemini-pro')
+    # Check Gemini documentation for available models and their capabilities
+    model = genai.GenerativeModel(
+    'gemini-2.0-flash', # Your chosen model
+    system_instruction="You are a helpful assistant for a hospital management system dashboard. Your purpose is to answer questions about the system's features, provide explanations related to dashboard metrics (like patient counts, bed availability), and offer general, non-medical advice. **Do not provide medical diagnoses, medical advice, or engage in off-topic conversations like telling jokes.** If a user asks for medical advice or asks about sensitive patient data, politely state that you cannot help with that and suggest they consult a medical professional or the appropriate system feature."
+    # Add other parameters like generation_config or safety_settings if needed
+)
+    print("Gemini model initialized successfully using gemini-2.0-flash.")
+except Exception as e:
+    print(f"Error initializing Gemini model: {e}")
+    model = None # Set model to None if initialization fails
+    # You might want to log this error more formally
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'fallback_secret_key')  # Fallback if not set
 DATABASE = 'hospital.db'
@@ -786,6 +810,199 @@ def get_admissions_data():
 
     finally:
         close_db(conn)
+
+# --- Chatbot Endpoint (Gemini Integration with Serializable History and Commands) ---
+@app.route('/chatbot/send_message', methods=['POST'])
+def chatbot_send_message():
+    """
+    Receives message, checks for commands, gets data from DB if needed,
+    manages history, and uses Gemini for general queries.
+    """
+    # Check if the Gemini model was successfully initialized (still needed for general queries)
+    # We check this here so commands can still work even if Gemini is offline,
+    # but general questions will return an error.
+    gemini_available = model is not None
+
+
+    if request.method == 'POST':
+        try:
+            data = request.get_json()
+            user_message_text = data.get('message')
+
+            if not user_message_text:
+                return jsonify({'response': 'Error: No message received.'}), 400 # Bad Request
+
+            print(f"Received message: {user_message_text}")
+
+            # --- Manage Conversation History in Session ---
+            # Retrieve serializable history from the session
+            serializable_history = session.get('chat_history', [])
+
+            # Append the new user message text to the serializable history *before* command check.
+            # This way, the command is part of the history passed to Gemini if it's not handled internally,
+            # and it's also stored correctly if a command IS handled internally.
+            serializable_history.append({'role': 'user', 'parts': [{'text': user_message_text}]})
+            # --- End Manage Conversation History ---
+
+
+            # --- Command Handling Logic ---
+            # Initialize bot_response_text to None. It will be set if a command is matched and processed.
+            bot_response_text = None
+            command_handled = False # Flag to indicate if a command was processed
+
+            user_message_lower = user_message_text.lower()
+
+            try:
+                 # Get database connection here, *before* command checks that might need it.
+                 db = get_db()
+
+                 # --- Add your specific command checks here ---
+
+                 if "total patients" in user_message_lower or "number of patients" in user_message_lower:
+                     print("Recognized command: total patients")
+                     try:
+                         # Securely query your database using get_db()
+                         # !!! IMPORTANT: Adjust table and column names to match your schema !!!
+                         total_patients_row = db.execute('SELECT COUNT(*) FROM patients').fetchone()
+                         total_patients = total_patients_row[0] if total_patients_row else 0
+                         bot_response_text = f"There are currently {total_patients} patients in the system."
+                         command_handled = True
+                         print(f"Handled command: total patients, response: {bot_response_text}")
+                     except Exception as db_error:
+                         print(f"Database error fetching total patients: {db_error}")
+                         import traceback
+                         traceback.print_exc()
+                         bot_response_text = "Sorry, I couldn't retrieve the patient count right now due to a database error."
+                         command_handled = True # Still consider it handled, even if failed
+
+                 elif "available beds" in user_message_lower or "free beds" in user_message_lower:
+                     print("Recognized command: available beds")
+                     try:
+                         # Assuming you have a way to calculate available beds (e.g., beds - occupied)
+                         # Replace with your actual database query for available beds
+                         # !!! IMPORTANT: Adjust table and column names to match your schema !!!
+                         available_beds_row = db.execute('SELECT COUNT(*) FROM beds WHERE status = "available"').fetchone() # Example query
+                         available_beds = available_beds_row[0] if available_beds_row else 0
+                         bot_response_text = f"There are currently {available_beds} available beds."
+                         command_handled = True
+                         print(f"Handled command: available beds, response: {bot_response_text}")
+                     except Exception as db_error:
+                         print(f"Database error fetching available beds: {db_error}")
+                         import traceback
+                         traceback.print_exc()
+                         bot_response_text = "Sorry, I couldn't retrieve the available bed count right now due to a database error."
+                         command_handled = True # Still consider it handled, even if failed
+
+                 # Add more elif blocks here for other specific commands you want to handle internally
+                 # Remember to use db = get_db() to interact with your database securely.
+                 # Ensure sensitive data (like patient names, details) is NOT included in the response text
+                 # if it's not appropriate for a general chatbot interface.
+                 # elif "recent admissions" in user_message_lower:
+                 #     print("Recognized command: recent admissions")
+                 #     try:
+                 #         # Logic to fetch recent admissions from DB
+                 #         # ... get data from db ...
+                 #         bot_response_text = "Here are the recent admissions..." # Generate response from DB data
+                 #         command_handled = True
+                 #     except Exception as db_error:
+                 #          print(f"Database error fetching recent admissions: {db_error}")
+                 #          import traceback
+                 #          traceback.print_exc()
+                 #          bot_response_text = "Sorry, I couldn't retrieve recent admissions right now."
+                 #          command_handled = True
+
+
+            except Exception as command_error:
+                # Catch errors specifically within your command handling logic
+                print(f"Error during command handling logic execution: {command_error}")
+                import traceback
+                traceback.print_exc()
+                # Set a fallback message if an unexpected error occurs during command processing
+                bot_response_text = "An internal error occurred while trying to process your command."
+                command_handled = True # Treat as handled to avoid hitting Gemini fallback
+
+
+            # --- End Command Handling Logic ---
+
+            # --- Gemini API Logic (Fallback for Unrecognized Commands or General Queries) ---
+            # Only call Gemini if no specific command was handled internally (command_handled is still False)
+            if not command_handled:
+                 print("No command handled internally, sending to Gemini API...")
+                 if not gemini_available:
+                     # If Gemini model is not available and no internal command was handled
+                     bot_response_text = "Error: Chatbot service is currently unavailable."
+                 else:
+                     try:
+                         # Use the chat session with the history that includes the user's current message.
+                         # The Gemini model's system_instruction will still apply here,
+                         # which helps in guiding its response for general questions.
+                         chat = model.start_chat(history=serializable_history)
+                         response = chat.send_message(user_message_text) # Send only the latest message text
+
+                         if response and hasattr(response, 'text'):
+                             bot_response_text = response.text
+                             print("Response generated by Gemini.")
+                         else:
+                              print(f"Gemini API returned unexpected response structure: {response}")
+                              import json
+                              try:
+                                  print(f"Gemini response object (attempted JSON): {json.dumps(response, default=str)}") # Use default=str for unserializable objects
+                              except TypeError:
+                                   print(f"Gemini response object (raw): {response}")
+                              bot_response_text = "Error: Could not get a valid response from the AI."
+
+                     except Exception as api_error:
+                         print(f"Error calling Gemini API for general query: {api_error}")
+                         import traceback
+                         traceback.print_exc()
+                         bot_response_text = "Error: Could not get a response from the AI."
+                         # If API call fails, we should not update history with a potential bad response from AI
+
+
+            # --- End Gemini API Logic ---
+
+            # --- Update Serializable History with Bot Response ---
+            # We append the bot's response text to the serializable history
+            # This happens whether the response came from command handling or Gemini
+            # Only append if bot_response_text was successfully generated (not None or initial error message)
+            # Check if bot_response_text was set by either command logic or Gemini
+            # If it's still the initial error message from command failure, we might not want to add it?
+            # Let's add it unless it's explicitly None from a path that didn't set it.
+            if bot_response_text is not None:
+                 # Ensure we don't append the same error message twice if it was set earlier
+                 # A simpler approach is just to append whatever bot_response_text is at the end
+                 serializable_history.append({'role': 'model', 'parts': [{'text': bot_response_text}]})
+                 # Save the updated serializable history back to the session
+                 session['chat_history'] = serializable_history
+                 # Print history for debugging (optional)
+                 # print("Current Conversation History in Session:", session.get('chat_history', []))
+
+
+            # --- Return Response ---
+            # Ensure bot_response_text has a value before returning
+            if bot_response_text is None:
+                 # Fallback if somehow no response was generated (shouldn't happen with current logic)
+                 bot_response_text = "Sorry, I didn't understand that or encountered an issue."
+                 # In this rare case, maybe don't add to history? Or add with a special marker?
+                 # For simplicity, we'll return it.
+
+            return jsonify({'response': bot_response_text}), 200 # Always return 200 if we reached here and have a response
+
+
+        except Exception as e:
+            # Catch broader errors in the request handling process (e.g., issues with request.get_json, initial session retrieval)
+            print(f"Fatal error in chatbot_send_message: {e}")
+            import traceback
+            traceback.print_exc()
+            # Clear history on fatal errors to potentially allow a clean restart on next interaction
+            session.pop('chat_history', None)
+            # Return a server error response to the frontend
+            return jsonify({'response': 'Error: An unexpected error occurred on the server.'}), 500 # Internal Server Error
+
+    # Handle cases where the request method is not POST
+    return jsonify({'response': 'Error: Method not allowed.'}), 405 # Method Not Allowed
+
+# --- End Chatbot Endpoint ---
 
 if __name__ == '__main__':
     app.run(debug=True)

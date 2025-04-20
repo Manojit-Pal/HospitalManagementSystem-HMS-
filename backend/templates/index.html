@@ -249,20 +249,42 @@
             <canvas id="admissionsChart"></canvas>
         </div>
     </section>
-
-
-
-    <!-- Scroll to Top Button -->
-    <button id="scrollTopBtn" class="btn btn-primary position-fixed" style="bottom: 20px; right: 20px; display: none;">
-        <i class="fas fa-arrow-up"></i>
-    </button>
-
+    
     <!-- Footer -->
     <footer class="bg-white border-top py-4 text-center" data-aos="fade-up">
         <div class="container">
             <p class="mb-0 text-muted">&copy; 2025 Hospital Management System. All rights reserved.</p>
         </div>
     </footer>
+
+    <div id="chatbot-container">
+        <button id="chatbot-toggle-btn" class="btn btn-primary rounded-circle shadow-lg">
+            <i class="fas fa-comment-dots"></i> {# Chat icon #}
+        </button>
+        <div id="chat-window" class="shadow-lg rounded" style="display: none;"> {# Initially hidden #}
+            <div id="chat-header"
+                class="bg-primary text-white rounded-top d-flex justify-content-between align-items-center p-2">
+                <h5 class="mb-0">HMS Chatbot</h5>
+                <button id="chat-close-btn" class="btn btn-sm btn-outline-light border-0">
+                    <i class="fas fa-times"></i> {# Close icon #}
+                </button>
+            </div>
+            <div id="chat-body" class="p-2">
+                {# Chat messages will appear here #}
+                <div class="chat-message bot-message">Welcome! How can I help you today?</div>
+            </div>
+            <div id="chat-input-area" class="p-2 border-top d-flex">
+                <input type="text" id="chat-input" class="form-control me-2" placeholder="Type a message...">
+                <button id="chat-send-btn" class="btn btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+    {# ... existing scroll-to-top button ... #}
+    <!-- Scroll to Top Button -->
+    <button id="scrollTopBtn" class="btn btn-primary position-fixed" style="bottom: 20px; right: 20px; display: none;">
+        <i class="fas fa-arrow-up"></i>
+    </button>
 
     <!-- Scripts -->
     {# Load external libraries first #}
@@ -285,7 +307,6 @@
         // It will be initialized within script.js
         var admissionsChart;
     </script>
-
     {# Link to your consolidated custom JavaScript file - Load AFTER libraries and URL variables #}
     <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 
