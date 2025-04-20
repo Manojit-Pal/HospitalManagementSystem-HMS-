@@ -1,11 +1,32 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Join OPD Queue</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
+
 <body>
     <div class="container">
+        {# --- Flash Message Display Block --- #}
+        {# This block checks for flashed messages and displays them in Bootstrap alert boxes #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mt-3 mb-3"> {# Add some margin for spacing #}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                {# Bootstrap 4 requires a button element with data-dismiss for closing #}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        {# --- End Flash Message Display Block --- #}
+
         <h1>Join OPD Queue</h1>
         <form method="POST" action="{{ url_for('join_opd_queue') }}">
             <div class="form-group">
@@ -13,7 +34,8 @@
                 <select class="form-control" id="patient_id" name="patient_id" required>
                     <option value="">-- Select Patient --</option>
                     {% for patient in patients %}
-                    <option value="{{ patient['patient_id'] }}">{{ patient['name'] }} (ID: {{ patient['patient_id'][:8] }})</option>
+                    <option value="{{ patient['patient_id'] }}">{{ patient['name'] }} (ID: {{ patient['patient_id'][:8]
+                        }})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -28,5 +50,11 @@
         <br>
         <a href="{{ url_for('list_patients') }}" class="btn btn-secondary">Back to Patient List</a>
     </div>
+
+    {# Bootstrap 4 requires jQuery and Popper.js before the Bootstrap JS bundle #}
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>

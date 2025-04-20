@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Register | Hospital Management System</title>
@@ -8,6 +9,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
+        /* Keep your custom styles from the original register.html here */
+        /* Ensure they are consistent with Bootstrap 5 */
         body {
             background: #eaf6ff;
             display: flex;
@@ -16,32 +19,43 @@
             min-height: 100vh;
             margin: 0;
         }
+
         .register-container {
             background: #fff;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-            width: 600px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            /* Make container responsive */
+            max-width: 600px;
+            /* Max width as before */
         }
+
         .register-title {
             text-align: center;
             margin-bottom: 20px;
             color: #007bff;
         }
+
         .steps {
             display: flex;
             justify-content: space-between;
             margin-bottom: 20px;
         }
+
         .step {
             flex: 1;
             text-align: center;
             color: #aaa;
             position: relative;
+            font-size: 0.9rem;
+            /* Adjust font size for steps on smaller screens */
         }
+
         .step.active {
             color: #007bff;
         }
+
         .step::before {
             content: attr(data-step);
             width: 30px;
@@ -53,102 +67,176 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 5px;
+            font-size: 1rem;
+            /* Adjust size for the circle number */
         }
+
         .step.active::before {
             background: #007bff;
         }
+
         .step:not(:last-child)::after {
             content: '';
             position: absolute;
             top: 15px;
-            right: -50%;
-            width: 100%;
+            /* Adjust vertical alignment */
+            left: calc(50% + 15px);
+            /* Start after circle + half gap */
+            width: calc(50% - 15px);
+            /* Connects circles */
             height: 2px;
             background: #ccc;
             z-index: -1;
         }
-        .step.active + .step::after {
+
+        .step.active+.step::after {
             background: #007bff;
         }
+
         .form-step {
             display: none;
         }
+
         .form-step.active {
             display: block;
         }
-        .form-group {
-            margin-bottom: 15px;
-        }
+
+        /* Using Bootstrap spacing classes instead of margin-bottom for form-group */
+        /* .form-group { margin-bottom: 15px; } */
+
+
         .password-toggle {
             position: relative;
         }
+
         .toggle-icon {
             position: absolute;
             top: 50%;
             right: 10px;
             transform: translateY(-50%);
             cursor: pointer;
+            z-index: 2;
+            /* Ensure icon is above input */
+            color: #aaa;
+            /* Default icon color */
+        }
+
+        /* Style for icon when input is invalid */
+        .password-toggle .form-control.is-invalid+.toggle-icon {
+            color: #dc3545;
+            /* Red color for invalid state */
+        }
+
+        /* Style for icon when input is valid (optional) */
+        .password-toggle .form-control.is-valid+.toggle-icon {
+            color: #198754;
+            /* Green color for valid state */
+        }
+
+        /* Adjust feedback margin when using password toggle */
+        .password-toggle .invalid-feedback {
+            margin-top: 0.25rem;
+            /* Match Bootstrap default */
         }
     </style>
 </head>
+
 <body>
     <div class="register-container">
+        {# --- Flash Message Display Block (Uses BS5 classes) --- #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mt-3 mb-3"> {# Add some margin for spacing #}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+        {# --- End Flash Message Display Block --- #}
+
+
         <h2 class="register-title">Create an Account</h2>
         <div class="steps">
             <div class="step active" data-step="1">Basic Info</div>
             <div class="step" data-step="2">Other Details</div>
             <div class="step" data-step="3">Review</div>
         </div>
-        <form id="registerForm" method="POST" action="{{ url_for('register') }}">
-            <!-- Step 1 -->
+
+        {# Add novalidate to the form to prevent default browser HTML5 validation popups #}
+        <form id="registerForm" method="POST" action="{{ url_for('register') }}" novalidate>
             <div class="form-step active">
-                <div class="form-group">
-                    <label>User Type:</label>
-                    <select class="form-control" id="user_type" name="user_type" required>
+                <div class="mb-3"> {# Using Bootstrap spacing mb-3 #}
+                    <label for="user_type" class="form-label">User Type:</label>
+                    <select class="form-select" id="user_type" name="user_type" required> {# Use form-select for BS5 #}
                         <option value="">Select User Type</option>
                         <option value="hospital">Hospital</option>
                         <option value="doctor">Doctor</option>
                         <option value="patient">Patient</option>
                     </select>
+                    {# Add invalid feedback div - Initially hidden by Bootstrap #}
+                    <div class="invalid-feedback">Please select a user type.</div>
                 </div>
-                <div class="form-group">
-                    <label>Name:</label>
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name:</label>
                     <input type="text" class="form-control" id="name" name="name" required>
+                    <div class="invalid-feedback">Please enter your name.</div>
                 </div>
-                <div class="form-group">
-                    <label>Phone:</label>
+                <div class="mb-3">
+                    <label for="phone" class="form-label">Phone:</label>
                     <input type="tel" class="form-control" id="phone" name="phone" required>
+                    <div class="invalid-feedback">Please enter your phone number.</div>
                 </div>
-                <div class="form-group">
-                    <label>Email:</label>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email:</label>
                     <input type="email" class="form-control" id="email" name="email" required>
+                    <div class="invalid-feedback">Please enter a valid email address.</div>
                 </div>
-                <div class="form-group password-toggle">
-                    <label>Password:</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
-                    <i class="fa fa-eye toggle-icon" onclick="togglePassword(this, 'password')"></i>
+                <div class="mb-3 password-toggle">
+                    <label for="password" class="form-label">Password:</label>
+                    {# Added minlength based on app.py validation #}
+                    <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                    {# Pass input ID to toggle function #}
+                    <i class="fa fa-eye toggle-icon" onclick="togglePassword('password')"></i>
+                    <div class="invalid-feedback" id="passwordFeedback">Password must be at least 8 characters.</div>
                 </div>
-                <div class="form-group password-toggle">
-                    <label>Confirm Password:</label>
-                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
-                    <i class="fa fa-eye toggle-icon" onclick="togglePassword(this, 'confirm_password')"></i>
+                <div class="mb-3 password-toggle">
+                    <label for="confirm_password" class="form-label">Confirm Password:</label>
+                    {# Added minlength based on app.py validation #}
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required
+                        minlength="8">
+                    {# Pass input ID to toggle function #}
+                    <i class="fa fa-eye toggle-icon" onclick="togglePassword('confirm_password')"></i>
+                    <div class="invalid-feedback" id="confirmPasswordFeedback">Passwords do not match.</div>
                 </div>
-                <button type="button" class="btn btn-primary" onclick="nextStep(0)">Continue</button>
+                {# Removed index from onclick #}
+                <button type="button" class="btn btn-primary" onclick="nextStep()">Continue</button>
             </div>
 
-            <!-- Step 2 -->
             <div class="form-step">
                 <div id="otherDetailsContainer">
-                    <!-- Dynamic based on user_type -->
+                    {# Example structure that will be injected: #}
+                    {#
+                    <div class="mb-3">
+                        <label for="hospital_name" class="form-label">Hospital Name:</label>
+                        <input type="text" class="form-control" id="hospital_name" name="hospital_name" required>
+                        <div class="invalid-feedback">Please enter the hospital name.</div>
+                    </div>
+                    #}
                 </div>
                 <button type="button" class="btn btn-secondary" onclick="prevStep()">Back</button>
-                <button type="button" class="btn btn-primary" onclick="nextStep(1)">Continue</button>
+                {# Removed index from onclick #}
+                <button type="button" class="btn btn-primary" onclick="nextStep()">Continue</button>
             </div>
 
-            <!-- Step 3 -->
             <div class="form-step">
                 <p class="text-muted">Please review your details before submitting.</p>
-                <div id="reviewSummary"></div>
+                <div id="reviewSummary">
+                    {# Review summary will be injected here by JS #}
+                </div>
                 <button type="button" class="btn btn-secondary" onclick="prevStep()">Back</button>
                 <button type="submit" class="btn btn-success">Register</button>
             </div>
@@ -159,112 +247,240 @@
         let currentStep = 0;
         const steps = document.querySelectorAll('.form-step');
         const stepIndicators = document.querySelectorAll('.step');
+        const registerForm = document.getElementById('registerForm');
 
+
+        // Function to show the current step and update indicators
         function showStep(index) {
             steps.forEach((step, i) => {
                 step.classList.toggle('active', i === index);
+                // Add 'active' class to indicator circles up to the current step + 1 (for the line)
+                // Or just for the current step? Let's keep it simple and just mark the current step indicator active.
                 stepIndicators[i].classList.toggle('active', i === index);
             });
+            // Optional: You might want to visually mark completed steps differently
+            // stepIndicators.forEach((indicator, i) => { indicator.classList.toggle('completed', i < index); });
+
             currentStep = index;
         }
 
-        function validateStep(index) {
-            const inputs = steps[index].querySelectorAll('input, select');
-            for (let input of inputs) {
+        // Function to validate the current step using HTML5 validation API and Bootstrap classes
+        function validateCurrentStep() {
+            const currentStepElement = steps[currentStep];
+            const inputs = currentStepElement.querySelectorAll('input, select');
+            let stepValid = true; // Assume step is valid initially
+
+            // Clear previous validation classes for this step
+            currentStepElement.querySelectorAll('.form-control, .form-select').forEach(input => {
+                input.classList.remove('is-invalid', 'is-valid');
+            });
+
+            // Check HTML5 validation for all inputs in the current step
+            inputs.forEach(input => {
+                // Check input.checkValidity() which respects 'required', 'minlength', 'type="email/number"', 'min/max', etc.
                 if (!input.checkValidity()) {
-                    input.reportValidity();
-                    return false;
+                    stepValid = false; // If any input is invalid, the step is invalid
+                    input.classList.add('is-invalid'); // Add Bootstrap invalid class
+                    // The invalid-feedback div will automatically show because of .is-invalid on novalidate form
+                } else {
+                    input.classList.add('is-valid'); // Mark valid inputs with Bootstrap valid class
                 }
+            });
+
+            // Specific check for password match on Step 0 ONLY if basic HTML5 validation passed for password fields
+            if (currentStep === 0 && stepValid) {
+                const passInput = document.getElementById('password');
+                const confirmInput = document.getElementById('confirm_password');
+                const confirmFeedback = document.getElementById('confirmPasswordFeedback'); // Get the specific feedback div
+
+                // Check if they meet basic validity (e.g., minlength if set) AND they match
+                if (passInput.checkValidity() && confirmInput.checkValidity() && passInput.value !== confirmInput.value) {
+                    stepValid = false; // Step is invalid due to mismatch
+
+                    // Mark both fields as invalid because of the mismatch
+                    passInput.classList.remove('is-valid'); confirmInput.classList.remove('is-valid');
+                    passInput.classList.add('is-invalid');
+                    confirmInput.classList.add('is-invalid');
+
+                    // Set a custom validation message on confirm password input
+                    confirmInput.setCustomValidity("Passwords do not match.");
+                    // reportValidity on the confirm input to show the specific message
+                    confirmInput.reportValidity(); // This triggers the browser's validation UI, which Bootstrap styles
+
+                } else {
+                    // Passwords match OR one/both failed basic HTML5 validation (already handled above)
+                    // If they match and passed basic validation, they are already marked is-valid above.
+                    // Clear the custom validation message on confirm password if they now match or failed basic validation
+                    confirmInput.setCustomValidity("");
+                    // No need to hide feedback manually, Bootstrap handles it when setCustomValidity('') or is-invalid is removed
+                }
+
+                // Re-check overall step validity considering potential custom validity issues
+                if (!passInput.checkValidity() || !confirmInput.checkValidity()) {
+                    stepValid = false; // If after setting custom validity, checkValidity is false, the step is invalid
+                }
+            } else if (currentStep === 0 && !stepValid) {
+                // If the step is invalid before password check (e.g., empty email),
+                // ensure password match feedback is cleared so it doesn't show prematurely.
+                const confirmInput = document.getElementById('confirm_password');
+                confirmInput.setCustomValidity("");
             }
 
-            // Additional check for password match on step 0
-            if (index === 0) {
-                const pass = document.getElementById('password').value;
-                const confirm = document.getElementById('confirm_password').value;
-                if (pass !== confirm) {
-                    alert("Passwords do not match.");
-                    return false;
-                }
-            }
 
-            return true;
+            // If the step is valid, all inputs are already marked is-valid (except potentially password mismatch case handled above)
+            // If the step is invalid, at least one input is marked is-invalid and its feedback is implicitly shown by Bootstrap
+
+            return stepValid; // Return the final validity status for the step
         }
 
-        function nextStep(index) {
-            if (validateStep(index)) {
-                if (index === 0) renderOtherDetails();
-                if (index === 1) renderReview();
-                showStep(index + 1);
+
+        // Function to move to the next step
+        function nextStep() {
+            // Validate the current step before moving
+            if (validateCurrentStep()) {
+                // Perform step-specific actions if validation passes
+                if (currentStep === 0) {
+                    renderOtherDetails(); // Render dynamic fields after validating step 1
+                } else if (currentStep === 1) {
+                    renderReview(); // Render review summary after validating step 2
+                }
+
+                // Move to the next step
+                showStep(currentStep + 1);
+            } else {
+                // If validation fails, report validity on the form to show all invalid fields
+                registerForm.reportValidity();
             }
         }
 
+        // Function to move to the previous step
         function prevStep() {
-            if (currentStep > 0) showStep(currentStep - 1);
+            if (currentStep > 0) {
+                showStep(currentStep - 1);
+            }
         }
 
+        // Function to dynamically render fields for Step 2 based on user type
         function renderOtherDetails() {
             const container = document.getElementById("otherDetailsContainer");
             const userType = document.getElementById("user_type").value;
-            container.innerHTML = '';
+            container.innerHTML = ''; // Clear previous dynamic fields
+
+            let html = ''; // Use a temporary string to build HTML
 
             if (userType === "hospital") {
-                container.innerHTML = `
-                    <div class="form-group">
-                        <label>Hospital Name:</label>
-                        <input type="text" class="form-control" name="hospital_name" required>
+                html = `
+                    <div class="mb-3">
+                    <label for="hospital_name" class="form-label">Hospital Name:</label> {# Added form-label #}
+                    <input type="text" class="form-control" id="hospital_name" name="hospital_name" required>
+                    <div class="invalid-feedback">Please enter the hospital name.</div> {# Added feedback #}
                     </div>
-                    <div class="form-group">
-                        <label>Location:</label>
-                        <input type="text" class="form-control" name="location" required>
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Location:</label> {# Added form-label #}
+                        <input type="text" class="form-control" id="location" name="location" required>
+                        <div class="invalid-feedback">Please enter the location.</div> {# Added feedback #}
                     </div>`;
             } else if (userType === "doctor") {
-                container.innerHTML = `
-                    <div class="form-group">
-                        <label>Specialization:</label>
-                        <input type="text" class="form-control" name="specialization" required>
+                html = `
+                    <div class="mb-3">
+                        <label for="specialization" class="form-label">Specialization:</label> {# Added form-label #}
+                        <input type="text" class="form-control" id="specialization" name="specialization" required>
+                        <div class="invalid-feedback">Please enter your specialization.</div> {# Added feedback #}
                     </div>
-                    <div class="form-group">
-                        <label>Years of Experience:</label>
-                        <input type="number" class="form-control" name="experience" min="0" required>
+                    <div class="mb-3">
+                        <label for="experience" class="form-label">Years of Experience:</label> {# Added form-label #}
+                        <input type="number" class="form-control" id="experience" name="experience" min="0" required>
+                        <div class="invalid-feedback">Please enter your years of experience.</div> {# Added feedback #}
                     </div>`;
             } else if (userType === "patient") {
-                container.innerHTML = `
-                    <div class="form-group">
-                        <label>Age:</label>
-                        <input type="number" class="form-control" name="age" min="0" required>
+                html = `
+                    <div class="mb-3">
+                        <label for="age" class="form-label">Age:</label> {# Added form-label #}
+                        <input type="number" class="form-control" id="age" name="age" min="0" required>
+                        <div class="invalid-feedback">Please enter your age.</div> {# Added feedback #}
                     </div>
-                    <div class="form-group">
-                        <label>Gender:</label>
-                        <select class="form-control" name="gender" required>
-                            <option value="">Select</option>
-                            <option>Male</option>
-                            <option>Female</option>
-                            <option>Other</option>
+                    <div class="mb-3">
+                        <label for="gender" class="form-label">Gender:</label> {# Added form-label #}
+                        <select class="form-select" id="gender" name="gender" required> {# Use form-select #}
+                        <option value="">Select</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Other</option>
                         </select>
+                        <div class="invalid-feedback">Please select your gender.</div> {# Added feedback #}
                     </div>`;
             }
-        }
 
+            // --- Add Passcode Field for Hospital and Doctor ---
+            if (userType === "hospital" || userType === "doctor") {
+                html += `
+                    <div class="mb-3">
+                        <label for="passcode" class="form-label">Registration Passcode:</label> {# Added form-label #}
+                        {# Use type="password" for security #}
+                        <input type="password" class="form-control" id="passcode" name="passcode" required>
+                        {# Specific feedback message for the passcode #}
+                        <div class="invalid-feedback">Please enter the correct passcode.</div> {# Added feedback #}
+                    </div>`;
+            }
+            // --- End Passcode Field ---
+
+
+            container.innerHTML = html; // Inject the generated HTML into the container
+        }
+        // Function to render the review summary for Step 3
         function renderReview() {
             const summary = document.getElementById('reviewSummary');
-            const formData = new FormData(document.getElementById('registerForm'));
-            let html = `<ul class="list-group">`;
+            const formData = new FormData(registerForm); // Use the form variable
+            let html = `<ul class="list-group list-group-flush">`; // Use list-group-flush for cleaner look
+
             for (const [key, value] of formData.entries()) {
+                // Skip password fields for review display
                 if (key.toLowerCase().includes("password")) continue;
-                html += `<li class="list-group-item"><strong>${key.replaceAll("_", " ")}:</strong> ${value}</li>`;
+
+                // Format the key nicely (e.g., "user_type" -> "User type")
+                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+
+                html += `<li class="list-group-item"><strong>${formattedKey}:</strong> ${value}</li>`;
             }
             html += `</ul>`;
             summary.innerHTML = html;
         }
 
-        function togglePassword(icon, inputId) {
+        // Function to toggle password input type and icon
+        function togglePassword(inputId) { // Function now takes inputId
             const input = document.getElementById(inputId);
+            // Find the toggle icon associated with this input (assuming it's the next sibling i)
+            const icon = input.nextElementSibling;
+
             const type = input.type === "password" ? "text" : "password";
             input.type = type;
-            icon.classList.toggle("fa-eye");
-            icon.classList.toggle("fa-eye-slash");
+
+            // Toggle FontAwesome eye icons
+            if (icon) {
+                icon.classList.toggle("fa-eye");
+                icon.classList.toggle("fa-eye-slash");
+            }
         }
+
+
+        // --- Initial Setup ---
+        // Show the first step when the page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            showStep(0);
+        });
+
+        // Optional: Add event listeners to buttons instead of onclick (cleaner JS practice)
+        // Requires adding IDs to your buttons, e.g., id="nextStep0Btn", id="prevStep1Btn" etc.
+        // Then:
+        // document.getElementById('nextStep0Btn').addEventListener('click', nextStep);
+        // document.getElementById('nextStep1Btn').addEventListener('click', nextStep);
+        // document.getElementById('prevStep1Btn').addEventListener('click', prevStep);
+        // document.getElementById('prevStep2Btn').addEventListener('click', prevStep);
+
     </script>
+
+    {# Bootstrap 5.3.3 JS bundle #}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
 </body>
+
 </html>

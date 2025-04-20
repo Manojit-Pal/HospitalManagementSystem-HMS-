@@ -1,14 +1,12 @@
-/* Global styles */
+/* Global Styles */
 html {
     scroll-behavior: smooth;
 }
 
 :root {
     --primary-color: #007bff;
-    /* Bootstrap primary blue */
     --primary-darker: #0056b3;
     --secondary-color: #6c757d;
-    /* Bootstrap secondary grey */
     --light-bg: #f8f9fa;
     --dark-text: #343a40;
     --card-border-color: #eee;
@@ -21,10 +19,53 @@ body {
     line-height: 1.6;
 }
 
+/* Loader */
+#loader-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100vw;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.loader {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #007bff;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Navbar */
 .navbar {
     background-color: white !important;
     border-bottom: 1px solid var(--card-border-color);
     padding: 1rem 2rem;
+}
+
+/* Sticky Navbar */
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+}
+
+.nav-item {
+    display: flex;
+    justify-content: center;
+    text-align: center;
 }
 
 .navbar-brand {
@@ -46,13 +87,12 @@ body {
 }
 
 .navbar-nav .btn {
-    margin-left: 1rem;
+    margin-left: 0.1rem;
 }
 
-/* Hero section */
+/* Hero Section */
 .hero {
     background-color: #e9ecef;
-    /* Light grey background for hero */
     padding: 80px 20px;
     text-align: center;
 }
@@ -81,7 +121,7 @@ body {
     border-radius: 5px;
 }
 
-/* Features section */
+/* Features Section */
 .features {
     padding: 40px 20px;
 }
@@ -118,6 +158,7 @@ footer {
     font-size: 0.9rem;
 }
 
+/* Dark Mode (Global) */
 body.dark-mode {
     background-color: #121212;
     color: #e0e0e0;
@@ -138,30 +179,25 @@ body.dark-mode a.nav-link {
     color: #f8f8f8 !important;
 }
 
-#loader-wrapper {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100vh;
-    width: 100vw;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10000;
-}
+/* Media Queries (Global) */
+@media (max-width: 768px) {
+    .navbar-nav {
+        text-align: center;
+    }
 
-.loader {
-    border: 8px solid #f3f3f3;
-    border-top: 8px solid #007bff;
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    animation: spin 1s linear infinite;
-}
+    header h1 {
+        font-size: 2rem;
+    }
 
-@keyframes spin {
-    100% {
-        transform: rotate(360deg);
+    header p {
+        font-size: 1rem;
+    }
+
+    .card-title {
+        font-size: 1rem;
+    }
+
+    .card-text {
+        font-size: 0.9rem;
     }
 }

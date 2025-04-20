@@ -1,12 +1,33 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>OPD Queue</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    {# Add your custom CSS if needed #}
+    {#
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"> #}
 </head>
+
 <body>
-    <div class="container">
+    <div class="container mt-4"> {# Added margin top #}
         <h1>OPD Queue</h1>
+
+        {# Add flash messages display here if you want them #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -15,6 +36,9 @@
                     <th>Department</th>
                     <th>Status</th>
                     <th>Check-in Time</th>
+                    {% if can_manage_opd %} {# Conditionally display Actions header #}
+                    <th>Actions</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -23,16 +47,186 @@
                     <td>{{ item['token_number'] }}</td>
                     <td>{{ item['name'] }}</td>
                     <td>{{ item['department'] }}</td>
-                    <td>{{ item['status'] }}</td>
+                    <td>
+                        <span id="status-{{ item['queue_id'] }}">{{ item['status'] }}</span> {# Add ID for easy update
+                        #}
+                    </td>
                     <td>{{ item['check_in_time'] }}</td>
+                    {% if can_manage_opd %} {# Conditionally display Actions column #}
+                    <td>
+                        {# Add buttons with data attributes for queue_id and new status #}
+                        {% if item['status'] == 'Waiting' %}
+                        <button class="btn btn-sm btn-success status-btn" data-queue-id="{{ item['queue_id'] }}"
+                            data-new-status="Serving">Serving</button>
+                        <button class="btn btn-sm btn-danger status-btn" data-queue-id="{{ item['queue_id'] }}"
+                            data-new-status="Skipped">Skipped</button>
+                        {% elif item['status'] == 'Serving' %}
+                        <button class="btn btn-sm btn-primary status-btn" data-queue-id="{{ item['queue_id'] }}"
+                            data-new-status="Completed">Completed</button>
+                        {# You might add a "Back to Waiting" or "Skipped" option here too #}
+                        {% elif item['status'] == 'Completed' %}
+                        <span class="text-muted">Completed</span>
+                        {% elif item['status'] == 'Skipped' %}
+                        <span class="text-warning">Skipped</span>
+                        {% else %}
+                        {{ item['status'] }} {# Display status if it's something else #}
+                        {% endif %}
+                    </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         <br>
         <a href="{{ url_for('join_opd_queue') }}" class="btn btn-primary">Join OPD Queue</a>
-        <br>
-        <a href="{{ url_for('list_patients') }}" class="btn btn-secondary">Back to Patient List</a>
+        {# Link back to index/dashboard #}
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
+
     </div>
+
+    {# Add Bootstrap JS and your custom script #}
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script> {# Required for Bootstrap 4 #}
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script> {# Required for
+    Bootstrap 4 #}
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script> {# Required for
+    Bootstrap 4 #}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Find all status update buttons
+            const statusButtons = document.querySelectorAll('.status-btn');
+
+            statusButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const queueId = this.dataset.queueId;
+                    const newStatus = this.dataset.newStatus;
+                    const currentRow = this.closest('tr'); // Get the parent table row
+                    const statusSpan = currentRow.querySelector(`#status-${queueId}`); // Get the status span in this row
+
+                    // Optional: Disable buttons or show a loading indicator
+                    currentRow.querySelectorAll('.status-btn').forEach(btn => btn.disabled = true);
+
+                    // Send an AJAX request to update the status
+                    fetch('{{ url_for('update_opd_status') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded', // Standard form encoding
+                        },
+                        body: new URLSearchParams({ // Encode data for form submission
+                            'queue_id': queueId,
+                            'status': newStatus
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update the status text on the page
+                                statusSpan.textContent = newStatus;
+
+                                // Update the buttons in the row based on the new status
+                                const actionsCell = currentRow.querySelector('td:last-child');
+                                actionsCell.innerHTML = ''; // Clear existing buttons
+
+                                if (newStatus === 'Waiting') {
+                                    actionsCell.innerHTML = `
+                                     <button class="btn btn-sm btn-success status-btn" data-queue-id="${queueId}" data-new-status="Serving">Serving</button>
+                                     <button class="btn btn-sm btn-danger status-btn" data-queue-id="${queueId}" data-new-status="Skipped">Skipped</button>
+                                 `;
+                                } else if (newStatus === 'Serving') {
+                                    actionsCell.innerHTML = `
+                                     <button class="btn btn-sm btn-primary status-btn" data-queue-id="${queueId}" data-new-status="Completed">Completed</button>
+                                  `;
+                                } else if (newStatus === 'Completed') {
+                                    actionsCell.innerHTML = `<span class="text-muted">Completed</span>`;
+                                } else if (newStatus === 'Skipped') {
+                                    actionsCell.innerHTML = `<span class="text-warning">Skipped</span>`;
+                                }
+
+                                // Re-attach event listeners to the new buttons
+                                actionsCell.querySelectorAll('.status-btn').forEach(newButton => {
+                                    newButton.addEventListener('click', handleStatusButtonClick); // Use a named function
+                                });
+
+
+                                console.log('Status updated:', data.message);
+                                // Optionally show a success message to the user
+                            } else {
+                                console.error('Failed to update status:', data.message);
+                                // Re-enable buttons on failure
+                                currentRow.querySelectorAll('.status-btn').forEach(btn => btn.disabled = false);
+                                // Optionally show an error message to the user
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error sending update request:', error);
+                            // Re-enable buttons on failure
+                            currentRow.querySelectorAll('.status-btn').forEach(btn => btn.disabled = false);
+                            // Optionally show an error message to the user
+                        });
+                });
+            });
+
+            // Helper function to handle button clicks and re-attach listeners
+            function handleStatusButtonClick() {
+                const queueId = this.dataset.queueId;
+                const newStatus = this.dataset.newStatus;
+                const currentRow = this.closest('tr');
+                const statusSpan = currentRow.querySelector(`#status-${queueId}`);
+
+                // Optional: Disable buttons or show a loading indicator
+                currentRow.querySelectorAll('.status-btn').forEach(btn => btn.disabled = true);
+
+                fetch('{{ url_for('update_opd_status') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'queue_id': queueId,
+                        'status': newStatus
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            statusSpan.textContent = newStatus;
+                            const actionsCell = currentRow.querySelector('td:last-child');
+                            actionsCell.innerHTML = '';
+
+                            if (newStatus === 'Waiting') {
+                                actionsCell.innerHTML = `
+                                     <button class="btn btn-sm btn-success status-btn" data-queue-id="${queueId}" data-new-status="Serving">Serving</button>
+                                     <button class="btn btn-sm btn-danger status-btn" data-queue-id="${queueId}" data-new-status="Skipped">Skipped</button>
+                                 `;
+                            } else if (newStatus === 'Serving') {
+                                actionsCell.innerHTML = `
+                                     <button class="btn btn-sm btn-primary status-btn" data-queue-id="${queueId}" data-new-status="Completed">Completed</button>
+                                  `;
+                            } else if (newStatus === 'Completed') {
+                                actionsCell.innerHTML = `<span class="text-muted">Completed</span>`;
+                            } else if (newStatus === 'Skipped') {
+                                actionsCell.innerHTML = `<span class="text-warning">Skipped</span>`;
+                            }
+                            // Re-attach listeners
+                            actionsCell.querySelectorAll('.status-btn').forEach(newButton => {
+                                newButton.addEventListener('click', handleStatusButtonClick);
+                            });
+                            console.log('Status updated:', data.message);
+                        } else {
+                            console.error('Failed to update status:', data.message);
+                            // Re-enable buttons on failure
+                            currentRow.querySelectorAll('.status-btn').forEach(btn => btn.disabled = false);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error sending update request:', error);
+                        // Re-enable buttons on failure
+                        currentRow.querySelectorAll('.status-btn').forEach(btn => btn.disabled = false);
+                    });
+            }
+        });
+    </script>
+
 </body>
+
 </html>
