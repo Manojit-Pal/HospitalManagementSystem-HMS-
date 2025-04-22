@@ -6,7 +6,7 @@ import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import jsonify # Make sure jsonify is imported at the top
-from datetime import datetime, date # Make sure datetime and date are imported
+from datetime import datetime, timedelta, date # Make sure datetime and date are imported
 import pytz
 
 load_dotenv()  # Load environment variables from .env
@@ -63,7 +63,7 @@ def initdb_command():
 def require_login():
     # Define routes that require login
     protected_routes = [
-        'dashboard', # <--- Add the endpoint name for your dashboard page here
+        'dashboard', 'view_profile', # <--- Add the endpoint name for your dashboard page here
         'list_patients', 'add_patient', 'join_opd_queue', 'view_opd_queue',
         'list_beds', 'add_bed', 'list_admissions', 'admit_patient',
         'view_inventory', 'add_inventory_item',
@@ -297,6 +297,88 @@ def logout():
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
+
+@app.route('/profile')
+def view_profile():
+
+    user_id = session.get('user_id')
+    user_type = session.get('user_type')
+
+    if not user_id or not user_type:
+        # This case should ideally be caught by @app.before_request,
+        # but adding a check here is robust.
+        flash('Please log in to view your profile.', 'warning')
+        return redirect(url_for('login'))
+
+    conn = get_db()
+    cursor = conn.cursor()
+    user_data = None
+    profile_data = None
+    error = None
+
+    try:
+        # Fetch base user data (email, user_type)
+        user_data = cursor.execute(
+            'SELECT id, email, user_type FROM users WHERE id = ?', (user_id,)
+        ).fetchone()
+
+        if not user_data:
+            error = 'User not found.' # Should not happen if user_id is in session
+
+        # Fetch role-specific profile data
+        if not error:
+            if user_type == 'hospital':
+                profile_data = cursor.execute(
+                    'SELECT hospital_name, location FROM hospital_profiles WHERE user_id = ?', (user_id,)
+                ).fetchone()
+                # Add 'name' here once you add it to the schema/users table
+                # profile_data = cursor.execute(
+                #     'SELECT u.email, p.hospital_name, p.location FROM users u JOIN hospital_profiles p ON u.id = p.user_id WHERE u.id = ?', (user_id,)
+                # ).fetchone()
+            elif user_type == 'doctor':
+                 profile_data = cursor.execute(
+                    'SELECT specialization, experience FROM doctor_profiles WHERE user_id = ?', (user_id,)
+                ).fetchone()
+                 # Add 'name' here once you add it to the schema/users table
+                # profile_data = cursor.execute(
+                #     'SELECT u.email, p.specialization, p.experience FROM users u JOIN doctor_profiles p ON u.id = p.user_id WHERE u.id = ?', (user_id,)
+                # ).fetchone()
+            elif user_type == 'patient':
+                 profile_data = cursor.execute(
+                    'SELECT age, gender FROM patient_profiles WHERE user_id = ?', (user_id,)
+                ).fetchone()
+                 # Add 'name' here once you add it to the schema/users table
+                # profile_data = cursor.execute(
+                #     'SELECT u.email, p.age, p.gender FROM users u JOIN patient_profiles p ON u.id = p.user_id WHERE u.id = ?', (user_id,)
+                # ).fetchone()
+            # Add elif blocks for other user types if any
+
+            if profile_data:
+                 # Combine user_data (email) with profile_data for easier template access
+                 # Convert row objects to dictionaries for easier merging
+                 user_info = dict(user_data)
+                 user_info.update(dict(profile_data))
+            else:
+                 # Handle case where user_type exists but no profile data found (shouldn't happen with current register logic)
+                 user_info = dict(user_data)
+                 flash(f'No profile data found for user type: {user_type}', 'warning')
+
+    except sqlite3.Error as e:
+        error = f'Database error fetching profile: {e}'
+        print(f"Database error fetching profile for user_id {user_id}: {e}")
+    except Exception as e:
+         error = f'An unexpected error occurred: {e}'
+         print(f"Unexpected error fetching profile for user_id {user_id}: {e}")
+    finally:
+        close_db(conn)
+
+    if error:
+        flash(error, 'danger')
+        # Redirect or render an error page
+        return redirect(url_for('index')) # Or a dedicated error page
+
+    # Render the profile template, passing the combined user_info
+    return render_template('profile.html', user=user_info)
 
 @app.route('/create_admin')
 def create_admin():
@@ -772,44 +854,63 @@ def get_now_serving():
 
 # Add this new route to your app.py
 
-@app.route('/get_admissions_data', methods=['GET'])
+@app.route('/get_admissions_data', methods=['GET']) # Renamed route for clarity (optional)
 def get_admissions_data():
-    conn = get_db()
-    cursor = conn.cursor()
-    admissions_data = {'labels': [], 'data': []}
-
+    conn = None # Initialize conn to None
     try:
-        # Query to count admissions by month (YYYY-MM)
-        # strftime('%Y-%m', admission_time) extracts the year and month
-        # GROUP BY combines rows with the same year and month
-        # ORDER BY ensures the months are in chronological order
-        admissions_by_month = cursor.execute(
-            "SELECT strftime('%Y-%m', admission_time) AS admission_month, COUNT(*) AS admission_count FROM admissions GROUP BY admission_month ORDER BY admission_month"
-        ).fetchall()
+        conn = get_db()
+        cursor = conn.cursor()
 
-        # Prepare data for Chart.js
-        for row in admissions_by_month:
-            # Format the month label (e.g., "2025-01" -> "Jan 2025")
-            month_str = row['admission_month']
-            # Parse the YYYY-MM string into a datetime object
-            date_obj = datetime.strptime(month_str, '%Y-%m')
-            # Format into a more readable string like "Jan 2025"
-            formatted_month = date_obj.strftime('%b %Y')
+        # 1. Determine the date range for the last 5 days
+        today = datetime.now().date()
+        last_5_days_dates = [(today - timedelta(days=i)) for i in range(4, -1, -1)] # List of date objects [4 days ago, ..., today]
+        date_strings = [d.strftime('%Y-%m-%d') for d in last_5_days_dates] # List of 'YYYY-MM-DD' strings
+        start_date_str = date_strings[0] # The date 4 days ago
 
-            admissions_data['labels'].append(formatted_month)
-            admissions_data['data'].append(row['admission_count'])
+        # 2. Query admissions grouped by date for the last 5 days
+        # Use DATE() function for SQLite to extract date part
+        # Filter records from the start date onwards
+        query = """
+            SELECT
+                DATE(admission_time) AS admission_date,
+                COUNT(*) AS daily_admissions_count
+            FROM
+                admissions
+            WHERE
+                DATE(admission_time) >= ?
+            GROUP BY
+                admission_date
+            ORDER BY
+                admission_date ASC;
+        """
+        # Execute query safely with parameter binding
+        cursor.execute(query, (start_date_str,))
+        admissions_from_db = cursor.fetchall()
 
-        return jsonify(admissions_data)
+        # 3. Create a dictionary to easily lookup counts by date
+        db_counts = {row['admission_date']: row['daily_admissions_count'] for row in admissions_from_db}
+
+        # 4. Prepare final data ensuring all 5 days are present (with 0 count if no admissions)
+        final_admissions_data = {'labels': [], 'data': []}
+        for date_str in date_strings:
+            final_admissions_data['labels'].append(date_str) # Use 'YYYY-MM-DD' as label
+            # Get count from db_counts, default to 0 if date not found
+            final_admissions_data['data'].append(db_counts.get(date_str, 0))
+
+        return jsonify(final_admissions_data)
 
     except sqlite3.Error as e:
-        print(f"Database error fetching admissions data: {e}")
-        return jsonify({'error': 'Could not fetch admissions data', 'details': str(e)}), 500
+        print(f"Database error fetching daily admissions data: {e}")
+        # Ensure consistent error format
+        return jsonify({'error': True, 'message': 'Could not fetch daily admissions data', 'details': str(e)}), 500
     except Exception as e:
-        print(f"General error fetching admissions data: {e}")
-        return jsonify({'error': 'Could not fetch admissions data', 'details': str(e)}), 500
-
+        print(f"General error fetching daily admissions data: {e}")
+         # Ensure consistent error format
+        return jsonify({'error': True, 'message': 'An unexpected error occurred', 'details': str(e)}), 500
     finally:
-        close_db(conn)
+        # Ensure close_db is called even if conn wasn't successfully assigned in try block
+        if conn:
+            close_db(conn)
 
 # --- Chatbot Endpoint (Gemini Integration with Serializable History and Commands) ---
 @app.route('/chatbot/send_message', methods=['POST'])

@@ -118,19 +118,19 @@ function fetchNowServing() {
 // Function to fetch admissions data and update the chart
 function fetchAdmissionsDataForChart() {
     // Use the global variable defined in index.html
-    fetch(admissionsDataUrl)
+    fetch(admissionsDataUrl) // Make sure this URL now points to your *new* backend endpoint/logic
         .then(response => { if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); } return response.json(); })
         .then(data => {
             if (data.error) {
                 console.error('Backend error fetching admissions data:', data.details);
-                // Check if the chart object exists before trying to update it
+                // Existing error handling...
                 if (window.admissionsChart) {
                     window.admissionsChart.data.labels = ['Error'];
                     window.admissionsChart.data.datasets[0].data = [0];
-                    // Use plugins.title for Chart.js v3+
+                    // Update title on error
                     if (window.admissionsChart.options.plugins && window.admissionsChart.options.plugins.title) {
                         window.admissionsChart.options.plugins.title.text = 'Error loading data';
-                    } else if (window.admissionsChart.options.title) { // Fallback for older Chart.js
+                    } else if (window.admissionsChart.options.title) {
                         window.admissionsChart.options.title.text = 'Error loading data';
                     }
                     window.admissionsChart.update();
@@ -141,14 +141,15 @@ function fetchAdmissionsDataForChart() {
             // Check if chart object and data exist and have expected properties
             if (window.admissionsChart && data.labels && data.data) {
                 // Update the chart's data and labels
-                window.admissionsChart.data.labels = data.labels;
-                window.admissionsChart.data.datasets[0].data = data.data;
+                window.admissionsChart.data.labels = data.labels; // Should now be the last 5 dates
+                window.admissionsChart.data.datasets[0].data = data.data; // Should now be the daily counts
 
-                // Optional: Update chart title or other options if needed
+                // *** Update chart title for clarity ***
+                const newTitle = 'Patient Admissions - Last 5 Days';
                 if (window.admissionsChart.options.plugins && window.admissionsChart.options.plugins.title) {
-                    window.admissionsChart.options.plugins.title.text = 'Patient Admissions Over Time'; // Update title on success
+                    window.admissionsChart.options.plugins.title.text = newTitle;
                 } else if (window.admissionsChart.options.title) { // Fallback for older Chart.js
-                    window.admissionsChart.options.title.text = 'Patient Admissions Over Time';
+                    window.admissionsChart.options.title.text = newTitle;
                 }
 
 
@@ -156,11 +157,11 @@ function fetchAdmissionsDataForChart() {
                 window.admissionsChart.update();
             } else {
                 console.warn("Chart object not found or data format unexpected.");
-                // Handle case where chart object or data structure is wrong
-                if (window.admissionsChart) {
+                // Existing handling for missing chart/data...
+                 if (window.admissionsChart) {
                     window.admissionsChart.data.labels = ['No Data'];
                     window.admissionsChart.data.datasets[0].data = [0];
-                    if (window.admissionsChart.options.plugins && window.admissionsChart.options.plugins.title) {
+                     if (window.admissionsChart.options.plugins && window.admissionsChart.options.plugins.title) {
                         window.admissionsChart.options.plugins.title.text = 'No data available';
                     } else if (window.admissionsChart.options.title) {
                         window.admissionsChart.options.title.text = 'No data available';
@@ -171,7 +172,7 @@ function fetchAdmissionsDataForChart() {
         })
         .catch(error => {
             console.error('Error fetching admissions data:', error);
-            // Handle fetch error display on the chart
+
             if (window.admissionsChart) {
                 window.admissionsChart.data.labels = ['Error'];
                 window.admissionsChart.data.datasets[0].data = [0];
