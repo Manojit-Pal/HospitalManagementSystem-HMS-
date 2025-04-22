@@ -65,7 +65,9 @@
             <ul class="navbar-nav">
                 {% if session.get('user_id') %}
                 <li class="nav-item">
-                    <span class="navbar-text me-2">Welcome, {{ session.get('user_email') }}!</span>
+                    <a class="nav-link navbar-text me-2" href="{{ url_for('view_profile') }}" style="cursor: pointer;">
+                        Welcome, {{ session.get('user_email') }}!
+                    </a>
                 </li>
                 <li class="nav-item">
                     <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
@@ -249,7 +251,7 @@
             <canvas id="admissionsChart"></canvas>
         </div>
     </section>
-    
+
     <!-- Footer -->
     <footer class="bg-white border-top py-4 text-center" data-aos="fade-up">
         <div class="container">
