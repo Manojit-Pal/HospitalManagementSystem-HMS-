@@ -13,6 +13,7 @@
     <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
+    {# Link your standard CSS files #}
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='index_style.css') }}">
 
@@ -35,90 +36,70 @@
             /* Use CSS variable */
         }
 
-        /* Style for the deduction form elements */
-        .deduct-form {
+        /* --- Styles for the action forms --- */
+        .action-forms-container {
             display: flex;
-            /* Align input and button horizontally */
             gap: 5px;
-            /* Space between input and button */
+            /* Space between add and deduct forms */
             align-items: center;
-            /* Vertically align items */
         }
 
-        .deduct-form input[type="number"] {
-            width: 80px;
-            /* Adjust input width as needed */
-            padding: 0.25rem 0.5rem;
-            /* Smaller padding */
-            font-size: 0.875rem;
-            /* Smaller font size */
+        /* Make form groups take available space */
+        .action-forms-container .input-group {
+            flex: 1;
+            /* Allow input groups to grow */
+            min-width: 120px;
+            /* Prevent them from becoming too small */
         }
 
-        .deduct-form button {
+        /* Adjust input width and font size if needed */
+        .action-forms-container .input-group input[type="number"] {
+            /* width: 70px; */
+            /* Auto width often works better with input-group */
             padding: 0.25rem 0.5rem;
-            /* Smaller padding */
             font-size: 0.875rem;
-            /* Smaller font size */
+            text-align: center;
+            /* Center number */
         }
+
+        .action-forms-container .input-group button {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* --- End Action Form Styles --- */
+
 
         /* Dark mode adjustments */
         body.dark-mode .inventory-table-container {
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
         }
 
-        /* Example in your style.css or index_style.css */
-        .table {
-            /* Default light mode styles */
-            color: #212529;
-            /* Bootstrap default text color */
-            border-color: #dee2e6;
-            /* Bootstrap default border color */
-        }
-
-        /* Dark mode styles using the custom class */
-        body.dark-mode .table {
-            color: #f8f9fa;
-            /* Lighter text color in dark mode */
-            border-color: #454d55;
-            /* Darker border color in dark mode */
-        }
-
-        /* Or using the data attribute (Bootstrap's approach) */
+        /* Table styling for dark mode (ensure these are correctly scoped in your main CSS) */
         body.dark-mode .table {
             color: #f8f9fa;
             border-color: #454d55;
-        }
-
-        /* For striped rows */
-        .table-striped tbody tr:nth-of-type(odd) {
-            background-color: rgba(0, 0, 0, 0.05);
-            /* Light stripe in light mode */
-        }
-
-        body.dark-mode .table-striped tbody tr:nth-of-type(odd) {
-            background-color: rgba(255, 255, 255, 0.05);
-            /* Dark stripe in dark mode */
         }
 
         body.dark-mode .table-striped tbody tr:nth-of-type(odd) {
             background-color: rgba(255, 255, 255, 0.05);
         }
 
-        /* --- NEW: Style for the container holding the Add Inventory Item button --- */
+        body.dark-mode .table-hover tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            /* Darker hover for dark mode */
+        }
+
+        /* Container for the Add New Item button */
         .add-inventory-button-container {
             display: flex;
             justify-content: center;
-            /* Center horizontally */
-            text-align: center;
-            /* Center text within the container (less critical for button) */
             margin-bottom: 20px;
-            /* Space below the button */
         }
-        /* --- END NEW --- */
     </style>
 </head>
 
-{# Apply dark mode attribute to body based on Flask variable (if you track theme backend-side) #}
+{# Apply dark mode attribute based on session/g variable #}
 
 <body {% if g.get('theme')=='dark' %}data-bs-theme="dark" {% endif %}>
 
@@ -126,6 +107,7 @@
         <div class="loader"></div>
     </div>
 
+    {# --- Navbar (Assuming it's standard across pages) --- #}
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm px-4" data-aos="fade-down">
         <a class="navbar-brand fw-bold text-primary" href="{{ url_for('index') }}">🏥 HMS</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -134,33 +116,22 @@
         <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
             <ul class="navbar-nav">
                 {% if session.get('user_id') %}
-                {# Add all your standard navigation links here, copied from index.html #}
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'list_patients' %}active{% endif %}"
-                        href="{{ url_for('list_patients') }}">Patients</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'view_opd_queue' %}active{% endif %}"
-                        href="{{ url_for('view_opd_queue') }}">OPD</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'list_beds' %}active{% endif %}"
-                        href="{{ url_for('list_beds') }}">Beds</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'list_admissions' %}active{% endif %}"
-                        href="{{ url_for('list_admissions') }}">Admissions</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'view_inventory' %}active{% endif %}"
-                        href="{{ url_for('view_inventory') }}">Inventory</a>
-                </li>
+                {# Standard Nav Links #}
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'list_patients' %}active{% endif %}"
+                        href="{{ url_for('list_patients') }}">Patients</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'view_opd_queue' %}active{% endif %}"
+                        href="{{ url_for('view_opd_queue') }}">OPD</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'list_beds' %}active{% endif %}"
+                        href="{{ url_for('list_beds') }}">Beds</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'list_admissions' %}active{% endif %}"
+                        href="{{ url_for('list_admissions') }}">Admissions</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'view_inventory' %}active{% endif %}"
+                        href="{{ url_for('view_inventory') }}">Inventory</a></li>
                 {% endif %}
             </ul>
             <ul class="navbar-nav">
                 {% if session.get('user_id') %}
                 <li class="nav-item">
-                    {# The clickable profile link #}
                     <a class="nav-link navbar-text me-2" href="{{ url_for('view_profile') }}" style="cursor: pointer;">
                         Welcome, {{ session.get('user_email') }}!
                     </a>
@@ -169,18 +140,13 @@
                     <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
                 </li>
                 {% else %}
-                {# Login/Register links if not logged in #}
-                <li class="nav-item">
-                    <a class="btn btn-outline-primary me-2" href="{{ url_for('login') }}">Login</a>
+                <li class="nav-item"><a class="btn btn-outline-primary me-2" href="{{ url_for('login') }}">Login</a>
                 </li>
-                <li class="nav-item">
-                    <a class="btn btn-primary" href="{{ url_for('register') }}">Register</a>
-                </li>
+                <li class="nav-item"><a class="btn btn-primary" href="{{ url_for('register') }}">Register</a></li>
                 {% endif %}
-                {# Dark Mode Toggle Button #}
+                {# Dark Mode Toggle #}
                 <li class="nav-item">
-                    <button id="darkModeToggle" class="btn btn-outline-secondary ms-2" title="Toggle Dark Mode"
-                        aria-label="Toggle Dark Mode">
+                    <button id="darkModeToggle" class="btn btn-outline-secondary ms-2" title="Toggle Dark Mode">
                         <i class="fas fa-moon moon-icon"></i>
                         <i class="fas fa-sun sun-icon" style="display: none;"></i>
                     </button>
@@ -188,8 +154,10 @@
             </ul>
         </div>
     </nav>
+    {# --- End Navbar --- #}
 
 
+    {# --- Flash Messages Container --- #}
     <div class="container mt-3">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -202,98 +170,134 @@
         {% endif %}
         {% endwith %}
     </div>
+    {# --- End Flash Messages --- #}
 
 
+    {# --- Main Inventory Content --- #}
     <div class="container my-5">
-        <div class="inventory-table-container card shadow-sm"> {# Use card and shadow classes #}
-            <div class="card-body"> {# Wrap content in card-body #}
+        <div class="inventory-table-container card shadow-sm">
+            <div class="card-body">
                 <h1>Current Inventory</h1>
 
-                {# --- NEW: Add New Inventory Item Button above the table, centered --- #}
-                {# Assuming 'can_add_inventory' is passed from backend based on user type #}
+                {# Button to add a *completely new* item - Only for hospital #}
                 {% if can_add_inventory %}
                 <div class="add-inventory-button-container">
-                    <a href="{{ url_for('add_inventory_item') }}" class="btn btn-primary">Add New Item</a>
+                    <a href="{{ url_for('add_inventory_item') }}" class="btn btn-primary">Add New Inventory Item</a>
                 </div>
                 {% endif %}
-                {# --- END NEW --- #}
 
-
-                {% if inventory is none or inventory | length == 0 %} {# Display message if inventory is empty #}
+                {# Check if inventory list is empty #}
+                {% if inventory is none or inventory | length == 0 %}
                 <p class="text-center text-muted">No inventory items found.</p>
+                {% if can_add_inventory %}
+                <p class="text-center"><a href="{{ url_for('add_inventory_item') }}">Add the first item?</a></p>
+                {% endif %}
                 {% else %}
 
-                <div class="table-responsive"> {# Make table responsive on small screens #}
-                    <table class="table table-striped table-hover align-middle"> {# Added table-hover for better UX #}
+                {# Inventory Table #}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>Item ID</th>
                                 <th>Item Name</th>
                                 <th>Quantity</th>
                                 <th>Unit</th>
-                                {% if can_deduct_inventory %} {# Only show Actions column if user can deduct #}
-                                <th>Actions</th>
+                                {# Actions column header - shown if user can add OR deduct #}
+                                {% if can_add_inventory or can_deduct_inventory %}
+                                <th style="min-width: 280px;">Actions (Add / Deduct)</th> {# Added min-width #}
                                 {% endif %}
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in inventory %}
-                            <tr data-item-id="{{ item['item_id'] }}"> {# Add data attribute for JS #}
-                                <td>{{ item['item_id'][:8] }}...</td> {# Truncate ID for display #}
+                            <tr data-item-id="{{ item['item_id'] }}">
+                                <td><span title="{{ item['item_id'] }}">{{ item['item_id'][:8] }}...</span></td> {#
+                                Tooltip for full ID #}
                                 <td>{{ item['item_name'] }}</td>
-                                <td class="item-quantity">{{ item['quantity'] }}</td> {# Add class to easily update quantity #}
-                                <td>{{ item['unit'] }}</td>
-                                {% if can_deduct_inventory %} {# Only show Actions cell if user can deduct #}
+                                <td class="item-quantity fw-bold">{{ item['quantity'] }}</td> {# Bold quantity #}
+                                <td>{{ item['unit'] if item['unit'] else '-' }}</td> {# Handle null/empty units #}
+
+                                {# Actions Cell - Conditionally shown based on header condition #}
+                                {% if can_add_inventory or can_deduct_inventory %}
                                 <td>
-                                    {# Small form for deducting quantity #}
-                                    <form class="deduct-form" data-item-id="{{ item['item_id'] }}">
-                                        <input type="number" class="form-control form-control-sm" min="1" value="1"
-                                            required>
-                                        <button type="submit" class="btn btn-warning btn-sm">Deduct</button>
-                                    </form>
+                                    {# Container for Add/Deduct forms #}
+                                    <div class="action-forms-container">
+
+                                        {# Add Quantity Form - ONLY for Hospital #}
+                                        {% if can_add_inventory %}
+                                        <form class="add-form" data-item-id="{{ item['item_id'] }}"
+                                            style="display: inline-block; margin-right: 5px;">
+                                            <div class="input-group input-group-sm">
+                                                <button type="submit" class="btn btn-success btn-sm"
+                                                    title="Add Quantity">
+                                                    <i class="fas fa-plus"></i> Add
+                                                </button>
+                                                <input type="number" class="form-control" min="1" value="1"
+                                                    aria-label="Quantity to add" required>
+                                            </div>
+                                        </form>
+                                        {% endif %}
+
+                                        {# Deduct Quantity Form - For Hospital & Doctor #}
+                                        {% if can_deduct_inventory %}
+                                        <form class="deduct-form" data-item-id="{{ item['item_id'] }}"
+                                            style="display: inline-block;">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" class="form-control" min="1" value="1"
+                                                    aria-label="Quantity to deduct" required>
+                                                <button type="submit" class="btn btn-warning btn-sm"
+                                                    title="Deduct Quantity">
+                                                    <i class="fas fa-minus"></i> Deduct
+                                                </button>
+                                            </div>
+                                        </form>
+                                        {% endif %}
+
+                                    </div> {# End action-forms-container #}
                                 </td>
                                 {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                </div> {# Close table-responsive #}
+                </div> {# End table-responsive #}
 
                 {% endif %} {# End check for empty inventory #}
 
-
-                {# --- Keep Back to Dashboard button at the bottom --- #}
-                <div class="mt-4"> {# Add margin top #}
-                    {# Removed the Add New Item button from here #}
+                {# Back Button #}
+                <div class="mt-4 text-center"> {# Centered back button #}
                     <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
                 </div>
-                {# --- END Keep Back to Dashboard button at the bottom --- #}
-            </div>
-        </div>
-    </div>
+
+            </div> {# End card-body #}
+        </div> {# End inventory-table-container #}
+    </div> {# End container #}
+    {# --- End Main Content --- #}
 
 
+    {# --- Footer --- #}
     <footer class="bg-white border-top py-4 text-center" data-aos="fade-up">
         <div class="container">
             <p class="mb-0 text-muted">&copy; 2025 Hospital Management System. All rights reserved.</p>
         </div>
     </footer>
+    {# --- End Footer --- #}
 
-    {# Include the entire chatbot HTML structure from index.html #}
+
+    {# --- Chatbot (Include if used across pages) --- #}
     <div id="chatbot-container">
         <button id="chatbot-toggle-btn" class="btn btn-primary rounded-circle shadow-lg">
-            <i class="fas fa-comment-dots"></i> {# Chat icon #}
+            <i class="fas fa-comment-dots"></i>
         </button>
-        <div id="chat-window" class="shadow-lg rounded" style="display: none;"> {# Initially hidden #}
+        <div id="chat-window" class="shadow-lg rounded" style="display: none;">
             <div id="chat-header"
                 class="bg-primary text-white rounded-top d-flex justify-content-between align-items-center p-2">
                 <h5 class="mb-0">HMS Chatbot</h5>
-                <button id="chat-close-btn" class="btn btn-sm btn-outline-light border-0">
-                    <i class="fas fa-times"></i> {# Close icon #}
-                </button>
+                <button id="chat-close-btn" class="btn btn-sm btn-outline-light border-0"><i
+                        class="fas fa-times"></i></button>
             </div>
             <div id="chat-body" class="p-2">
-                {# Chat messages will appear here #}
                 <div class="chat-message bot-message">Welcome! How can I help you today?</div>
             </div>
             <div id="chat-input-area" class="p-2 border-top d-flex">
@@ -302,146 +306,184 @@
             </div>
         </div>
     </div>
+    {# --- End Chatbot --- #}
 
 
+    {# --- Scroll Top Button --- #}
     <button id="scrollTopBtn" class="btn btn-primary position-fixed" style="bottom: 20px; right: 20px; display: none;">
         <i class="fas fa-arrow-up"></i>
     </button>
+    {# --- End Scroll Top Button --- #}
 
 
-    {# Using Bootstrap 5 JS #}
+    {# --- JavaScript Libraries --- #}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-    {# Include Chart.js if your script.js uses it, or if you plan to add charts #}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {# Include Chart.js only if needed by script.js or future features #}
+    {#
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> #}
 
-    {# Define URL variables for script.js and inline scripts using Jinja2 #}
+    {# --- Global JS Variables for AJAX URLs --- #}
     <script>
-        // Define global JavaScript variables using Flask's Jinja2 url_for function
-        // These variables will be accessible in your script.js file and inline scripts
-        const systemStatsUrl = "{{ url_for('get_system_stats') }}";
-        const recentActivitiesUrl = "{{ url_for('get_recent_activities') }}";
-        const nowServingUrl = "{{ url_for('get_now_serving') }}";
-        const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
-        const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
-        // Add the URL for the new inventory deduction endpoint
-        const deductInventoryUrl = "{{ url_for('deduct_inventory_item') }}";
+        // Define URLs needed by JavaScript - Values come from Flask's url_for
+        // IMPORTANT: If any of the endpoints listed here (like 'get_system_stats', etc.)
+        // do not actually exist as routes in your app.py, Flask's url_for function
+        // will raise a BuildError when rendering this template. You either need to
+        // create those routes or remove the corresponding url_for calls below.
 
-        // Declare chart variables globally if script.js expects them
-        // var admissionsChart;
-        // var dailyOpdChart;
-        // var monthlyOpdChart;
+        const systemStatsUrl = "{{ url_for('get_system_stats', _external=True) }}";
+        const recentActivitiesUrl = "{{ url_for('get_recent_activities', _external=True) }}";
+        const nowServingUrl = "{{ url_for('get_now_serving', _external=True) }}";
+        const admissionsDataUrl = "{{ url_for('get_admissions_data', _external=True) }}";
+        const updateOpdStatusUrl = "{{ url_for('update_opd_status', _external=True) }}";
+
+        // URLs for Inventory Actions (These should exist based on the Python code provided)
+        const deductInventoryUrl = "{{ url_for('deduct_inventory_item', _external=True) }}";
+        const addExistingInventoryUrl = "{{ url_for('add_existing_inventory_item', _external=True) }}";
     </script>
 
-    {# Link to your custom JavaScript file - Load AFTER libraries and URL variables #}
-    {# Ensure your script.js contains the dark mode toggle and other shared logic #}
+    {# --- Link to your main custom JavaScript file --- #}
     <script src="{{ url_for('static', filename='script.js') }}" defer></script>
 
+    {# --- Page-Specific JavaScript (Inventory Actions) --- #}
     <script>
+        // --- The rest of your page-specific JavaScript (DOMContentLoaded, listeners for .deduct-form, .add-form, etc.) goes here ---
+        // (Keep the JavaScript logic from the previous correct answer)
         document.addEventListener('DOMContentLoaded', function () {
-            // --- AOS Initialization ---
-            // If AOS.init() is not in script.js, initialize it here
-            if (typeof AOS !== 'undefined') {
-                AOS.init();
-            } else {
-                console.warn("AOS library not found. Skipping AOS initialization in view_inventory.html.");
+
+            // Initialize AOS if not handled by script.js
+            if (typeof AOS !== 'undefined' && typeof AOS.init === 'function') {
+                 AOS.init();
+            } else if (!document.querySelector('script[src*="script.js"]')) {
+                 console.warn("AOS library might not be loaded or initialized. Animations may not work.");
             }
 
-            // --- Dark Mode Toggle and Scroll-to-Top Setup ---
-            // These are assumed to be handled by your main script.js file
-            // because it's included with 'defer'. Do NOT duplicate that logic here.
-
-
             // --- Inventory Deduction Logic ---
-            // Find all deduction forms on the page
             const deductForms = document.querySelectorAll('.deduct-form');
-
             deductForms.forEach(form => {
                 form.addEventListener('submit', function (event) {
-                    event.preventDefault(); // Prevent the default form submission
-
-                    const itemId = form.dataset.itemId; // Get item ID from data attribute
+                    event.preventDefault();
+                    const itemId = form.dataset.itemId;
                     const quantityInput = form.querySelector('input[type="number"]');
-                    const quantityToDeduct = parseInt(quantityInput.value, 10); // Get quantity as integer
-
-                    // Basic client-side validation
-                    if (isNaN(quantityToDeduct) || quantityToDeduct <= 0) {
-                        alert('Please enter a valid positive number for quantity.'); // Use alert for simplicity here, could use a modal
-                        return;
-                    }
-
-                    // Find the table cell displaying the current quantity
+                    const quantityToDeduct = parseInt(quantityInput.value, 10);
                     const quantityCell = form.closest('tr').querySelector('.item-quantity');
                     const currentQuantity = parseInt(quantityCell.textContent, 10);
 
-                    // Client-side check to prevent deducting more than available
+                    if (isNaN(quantityToDeduct) || quantityToDeduct <= 0) {
+                        alert('Please enter a valid positive number to deduct.'); return;
+                    }
                     if (quantityToDeduct > currentQuantity) {
                         alert(`Cannot deduct ${quantityToDeduct}. Only ${currentQuantity} available.`);
-                        quantityInput.value = currentQuantity; // Reset input to current quantity
-                        return;
+                        quantityInput.value = currentQuantity > 0 ? currentQuantity : 1; return;
                     }
 
-
-                    // Prepare data for the POST request
                     const formData = new FormData();
                     formData.append('item_id', itemId);
                     formData.append('quantity', quantityToDeduct);
 
-                    // Send the AJAX POST request to the backend endpoint
-                    // Ensure deductInventoryUrl is defined globally in the HTML script block
-                    if (typeof deductInventoryUrl === 'undefined') {
-                         console.error("deductInventoryUrl is not defined!");
-                         alert("An internal error occurred (deduction URL missing).");
-                         return;
+                    // Check if the URL variable exists *before* fetching
+                    if (typeof deductInventoryUrl === 'undefined' || !deductInventoryUrl) {
+                         console.error("deductInventoryUrl is not defined or empty!"); alert("Error: Deduction URL missing."); return;
                     }
 
-
-                    fetch(deductInventoryUrl, {
-                        method: 'POST',
-                        body: formData // Use FormData for form-like data
-                        // If sending JSON, you would use:
-                        // headers: {'Content-Type': 'application/json'},
-                        // body: JSON.stringify({ item_id: itemId, quantity: quantityToDeduct })
+                    fetch(deductInventoryUrl, { method: 'POST', body: formData })
+                    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, data })))
+                    .then(({ ok, status, data }) => {
+                        if (!ok) { throw new Error(data.message || `Error ${status}`); }
+                        if (data.success) {
+                            quantityCell.textContent = data.new_quantity;
+                            quantityInput.value = 1; // Reset input
+                            flashMessage('Deduction successful!', 'success', form.closest('td'));
+                        } else {
+                            throw new Error(data.message || 'Deduction failed.');
+                        }
                     })
-                        .then(response => {
-                            // Check if the response is OK (status 200-299)
-                            if (!response.ok) {
-                                // If not OK, parse JSON error response and throw error
-                                return response.json().then(errorData => {
-                                    throw new Error(errorData.message || 'Failed to deduct inventory.');
-                                });
-                            }
-                            // If OK, parse the JSON success response
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success) {
-                                // Update the quantity displayed on the page
-                                quantityCell.textContent = data.new_quantity;
-                                // Optional: Show a success message (e.g., using flash messages or a temporary div)
-                                console.log(data.message); // Log success
-                                // Reset input field after successful deduction
-                                quantityInput.value = 1;
-                            } else {
-                                // This block handles success: false from backend validation (e.g., not found, insufficient stock)
-                                alert('Deduction failed: ' + data.message); // Use alert for simplicity
-                                console.error('Deduction failed:', data.message);
-                            }
-                        })
-                        .catch(error => {
-                            // This block handles network errors or errors thrown from the .then block
-                            console.error('Error during inventory deduction fetch:', error);
-                            alert('An error occurred during deduction: ' + error.message); // Use alert for simplicity
-                        });
+                    .catch(error => {
+                        console.error('Deduction Fetch Error:', error);
+                        alert(`Deduction Error: ${error.message}`);
+                         if (error.message.toLowerCase().includes("insufficient") || error.message.toLowerCase().includes("only")) {
+                             quantityInput.value = currentQuantity > 0 ? currentQuantity : 1;
+                         }
+                    });
                 });
-            });
-            // --- End Inventory Deduction Logic ---
+            }); // End deductForms.forEach
+
+
+            // --- Inventory Addition Logic (New) ---
+            const addForms = document.querySelectorAll('.add-form');
+            addForms.forEach(form => {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    const itemId = form.dataset.itemId;
+                    const quantityInput = form.querySelector('input[type="number"]');
+                    const quantityToAdd = parseInt(quantityInput.value, 10);
+                    const quantityCell = form.closest('tr').querySelector('.item-quantity');
+
+                    if (isNaN(quantityToAdd) || quantityToAdd <= 0) {
+                        alert('Please enter a valid positive number to add.'); return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('item_id', itemId);
+                    formData.append('quantity', quantityToAdd);
+
+                     // Check if the URL variable exists *before* fetching
+                    if (typeof addExistingInventoryUrl === 'undefined' || !addExistingInventoryUrl) {
+                         console.error("addExistingInventoryUrl is not defined or empty!"); alert("Error: Addition URL missing."); return;
+                    }
+
+                    fetch(addExistingInventoryUrl, { method: 'POST', body: formData })
+                     .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, data })))
+                     .then(({ ok, status, data }) => {
+                         if (!ok) { throw new Error(data.message || `Error ${status}`); }
+                         if (data.success) {
+                             quantityCell.textContent = data.new_quantity;
+                             quantityInput.value = 1; // Reset input
+                             flashMessage('Addition successful!', 'success', form.closest('td'));
+                         } else {
+                             throw new Error(data.message || 'Addition failed.');
+                         }
+                     })
+                     .catch(error => {
+                         console.error('Addition Fetch Error:', error);
+                         alert(`Addition Error: ${error.message}`);
+                     });
+                });
+            }); // End addForms.forEach
+
+            // --- Helper function for temporary messages near the action buttons ---
+             function flashMessage(message, type = 'info', container) {
+                // (Implementation from previous answer)
+                if (!container) return;
+                let existingAlert = container.querySelector('.temp-alert');
+                if(existingAlert) existingAlert.remove(); // Remove previous alert in this container
+
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `alert alert-${type} alert-dismissible fade show py-1 px-2 mt-1 temp-alert`; // Added temp-alert class
+                messageDiv.style.fontSize = '0.8rem';
+                messageDiv.setAttribute('role', 'alert');
+                messageDiv.textContent = message;
+
+                const formContainer = container.querySelector('.action-forms-container');
+                 if (formContainer) {
+                     formContainer.parentNode.insertBefore(messageDiv, formContainer.nextSibling);
+                 } else {
+                    container.appendChild(messageDiv); // Fallback
+                 }
+
+                 setTimeout(() => {
+                     const bsAlert = bootstrap.Alert.getInstance(messageDiv);
+                     if (bsAlert) {
+                         bsAlert.close();
+                     } else if (messageDiv) { // Check if div still exists before removing
+                         messageDiv.remove();
+                     }
+                 }, 3000); // Remove after 3 seconds
+             }
 
 
         }); // End DOMContentLoaded
-
     </script>
-
 </body>
 
 </html>
