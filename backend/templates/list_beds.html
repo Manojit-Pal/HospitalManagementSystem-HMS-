@@ -1,86 +1,610 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>Hospital Management System - Bed Availability</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bed Availability</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    {# Using Bootstrap 5 for consistency #}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='index_style.css') }}">
+
     <style>
-        /* Basic color scheme (you can expand this) */
-        :root {
-            --primary-color: #007bff;
-            --secondary-color: #6c757d;
-            --light-bg: #f8f9fa;
-            --dark-text: #343a40;
+        /* Add any specific styles for the bed list page here */
+        .bed-list-container {
+            margin-top: 30px;
+            padding: 30px;
+            /* Increased padding */
+            background-color: var(--card-bg-color);
+            /* Use CSS variable for background */
+            border-radius: 12px;
+            /* More rounded corners */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            /* Softer, larger shadow */
         }
-        body {
-            font-family: sans-serif;
-            color: var(--dark-text);
-            background-color: var(--light-bg);
+
+        .bed-list-container h1 {
+            text-align: center;
+            margin-bottom: 40px;
+            /* More space below heading */
+            color: var(--text-color);
+            /* Use CSS variable */
+            font-weight: 700;
+            /* Bolder heading */
         }
-        .navbar {
-            background-color: white !important;
-            border-bottom: 1px solid #eee;
+
+        /* Dark mode adjustments for the container */
+        body.dark-mode .bed-list-container {
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.15);
+            /* Adjust shadow for dark mode */
         }
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-            border-color: #0056b3;
-        }
-        .btn-secondary {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
-        }
-        .btn-secondary:hover {
-            background-color: #545b62;
-            border-color: #4e555b;
-        }
-        .card {
+
+        /* Styling for each bed entry container (like a row) */
+        .bed-entry {
+            border: 1px solid var(--border-color);
             margin-bottom: 15px;
-            border: 1px solid #eee;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            /* Space between entries */
+            border-radius: 8px;
+            /* Rounded corners for each entry */
+            overflow: hidden;
+            /* Ensures border-radius applies correctly */
+            background-color: var(--card-inner-bg-color);
+            /* Use a variable for entry background */
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            /* Smooth transition */
         }
-        .card-header {
-            background-color: white;
-            border-bottom: 1px solid #eee;
+
+        .bed-entry:hover {
+            border-color: var(--primary-color);
+            /* Highlight border on hover */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            /* Subtle shadow on hover */
+        }
+
+
+        /* Header area for Bed ID, Ward, Status, and Toggle Button */
+        .bed-entry-header {
+            padding: 15px 20px;
+            /* Added horizontal padding */
+            background-color: var(--card-header-bg);
+            /* Use CSS variable */
+            border-bottom: 1px solid var(--border-color);
+            /* Use CSS variable */
+            display: flex;
+            /* Use flexbox to align items */
+            justify-content: space-between;
+            /* Space out groups of items */
+            align-items: center;
+            /* Vertically align items */
+            transition: background-color 0.3s ease;
+            /* Smooth transition */
+        }
+
+         .bed-entry-header:hover {
+             background-color: var(--card-header-hover-bg); /* Subtle background change on hover */
+         }
+
+        .bed-entry-header .bed-info {
+            display: flex; /* Flexbox for Bed ID and Ward */
+            align-items: center;
+            flex-grow: 1; /* Allow info section to grow */
+            margin-right: 15px; /* Space between info and status/button */
+        }
+
+        .bed-entry-header h5 {
+             margin-bottom: 0; /* Remove default margin */
+             color: var(--text-color); /* Ensure header text uses variable */
+             font-weight: 600; /* Slightly less bold than main heading */
+             font-size: 1.15rem; /* Slightly larger font size */
+             margin-right: 15px; /* Space between Bed ID and Ward */
+        }
+
+         .bed-entry-header .bed-ward {
+             font-size: 1em;
+             color: var(--secondary-text-color); /* Muted color for ward */
+         }
+
+        .bed-entry-header .bed-status-and-toggle {
+            display: flex; /* Flexbox for Status and Button */
+            align-items: center;
+            flex-shrink: 0; /* Prevent this section from shrinking */
+        }
+
+
+        /* Collapsible details area - initially hidden */
+        .bed-details-body {
+            padding: 15px 20px;
+            /* Added horizontal padding */
+            /* display: none; /* Bootstrap handles this with .collapse */
+            border-top: 1px solid var(--border-color);
+            /* Separator line */
+        }
+
+        .bed-details-body p {
+            margin-bottom: 10px;
+            /* Slightly more margin between detail lines */
+            color: var(--text-color);
+            /* Ensure detail text uses variable */
+            line-height: 1.6;
+            /* Improved readability */
+        }
+
+         .bed-details-body p strong {
+             color: var(--primary-color); /* Style the labels */
+             display: inline-block; /* Allows setting a fixed width if needed */
+             min-width: 150px; /* Example: Align labels */
+         }
+
+        /* Style for status span */
+        .bed-status-span {
             font-weight: bold;
+            padding: 4px 8px; /* Add some padding */
+            border-radius: 4px; /* Rounded corners */
+            display: inline-block; /* Ensures padding/margin works */
+            min-width: 80px; /* Give it a minimum width */
+            text-align: center; /* Center the text */
+            margin-right: 15px; /* Space between status and button */
         }
+
+        /* Color status spans based on status */
+        .bed-status-span.status-Available {
+            background-color: var(--success-color-light);
+            /* Light success background */
+            color: var(--success-color-dark);
+            /* Dark success text */
+        }
+
+        .bed-status-span.status-Occupied {
+            background-color: var(--danger-color-light);
+            /* Light danger background */
+            color: var(--danger-color-dark);
+            /* Dark danger text */
+        }
+
+        /* Dark mode colors for status spans */
+        [data-bs-theme="dark"] .bed-status-span.status-Available {
+            background-color: var(--success-color-dark);
+            color: var(--success-color-light);
+        }
+
+        [data-bs-theme="dark"] .bed-status-span.status-Occupied {
+            background-color: var(--danger-color-dark);
+            color: var(--danger-color-light);
+        }
+
+        /* Class to show details (managed by Bootstrap) */
+        .bed-details-body.show {
+            display: block;
+            /* Bootstrap adds this class */
+        }
+
+        /* Dark mode adjustments for bed entries */
+        body.dark-mode .bed-entry {
+            border-color: var(--dark-mode-border-color);
+            box-shadow: 0 2px 8px rgba(255, 255, 255, 0.08);
+        }
+         body.dark-mode .bed-entry:hover {
+             border-color: var(--primary-color-dark); /* Dark mode primary color for hover */
+             box-shadow: 0 2px 8px rgba(255, 255, 255, 0.12);
+         }
+         body.dark-mode .bed-entry-header {
+             border-bottom-color: var(--dark-mode-border-color);
+         }
+         body.dark-mode .bed-details-body p strong {
+              color: var(--primary-color-dark); /* Dark mode primary color for labels */
+         }
+
+        /* --- Styling for Status and Ward Group Headings --- */
+        .status-group-heading {
+            margin-top: 40px; /* More space above status group */
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            border-bottom: 3px solid var(--primary-color); /* Thicker underline */
+            color: var(--primary-color); /* Color */
+            font-size: 1.8rem; /* Larger font size */
+            font-weight: 700;
+        }
+
+         [data-bs-theme="dark"] .status-group-heading {
+             border-bottom-color: var(--primary-color-dark); /* Dark mode primary color */
+             color: var(--primary-color-dark); /* Dark mode primary color */
+         }
+
+        .ward-heading {
+            margin-top: 25px; /* Space above ward group */
+            margin-bottom: 15px;
+            padding-bottom: 3px;
+            border-bottom: 1px dashed var(--secondary-color); /* Dashed underline */
+            color: var(--text-color); /* Use text color variable */
+            font-size: 1.4rem; /* Medium font size */
+            font-weight: 600;
+        }
+
+         [data-bs-theme="dark"] .ward-heading {
+             border-bottom-color: var(--dark-mode-border-color); /* Dark mode border color */
+             color: var(--text-color); /* Text color variable */
+         }
+
+         hr.my-5 {
+             border-top: 1px solid var(--border-color); /* Ensure HR respects dark mode */
+         }
+         [data-bs-theme="dark"] hr.my-5 {
+              border-top-color: var(--dark-mode-border-color);
+         }
+
+         /* Style for the container holding the Add Bed button */
+         .add-bed-button-container {
+             display: flex;
+             justify-content: center; /* Center horizontally */
+             text-align: center; /* Center text within the container (less critical for button) */
+             margin-bottom: 20px; /* Space below the button */
+         }
+
+
     </style>
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="{{ url_for('index') }}">HMS</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+
+{# Apply dark mode attribute to body based on Flask variable (if you track theme backend-side) #}
+
+<body {% if g.get('theme')=='dark' %}data-bs-theme="dark" {% endif %}>
+
+    <div id="loader-wrapper">
+        <div class="loader"></div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm px-4" data-aos="fade-down">
+        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('index') }}">🏥 HMS</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav mr-auto">
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('add_patient') }}">Register Patient</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('list_patients') }}">View Patients</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('join_opd_queue') }}">OPD Queue</a></li>
-                <li class="nav-item active"><a class="nav-link" href="{{ url_for('list_beds') }}">Bed Availability <span class="sr-only">(current)</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('admit_patient') }}">Admit Patient</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('view_inventory') }}">Inventory</a></li>
+        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+            <ul class="navbar-nav">
+                {% if session.get('user_id') %}
+                {# Add all your standard navigation links here, copied from index.html #}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_patients' %}active{% endif %}"
+                        href="{{ url_for('list_patients') }}">Patients</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'view_opd_queue' %}active{% endif %}"
+                        href="{{ url_for('view_opd_queue') }}">OPD</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_beds' %}active{% endif %}"
+                        href="{{ url_for('list_beds') }}">Beds</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_admissions' %}active{% endif %}"
+                        href="{{ url_for('list_admissions') }}">Admissions</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'view_inventory' %}active{% endif %}"
+                        href="{{ url_for('view_inventory') }}">Inventory</a>
+                </li>
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav">
+                {% if session.get('user_id') %}
+                <li class="nav-item">
+                    {# The clickable profile link #}
+                    <a class="nav-link navbar-text me-2" href="{{ url_for('view_profile') }}" style="cursor: pointer;">
+                        Welcome, {{ session.get('user_email') }}!
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
+                </li>
+                {% else %}
+                {# Login/Register links if not logged in #}
+                <li class="nav-item">
+                    <a class="btn btn-outline-primary me-2" href="{{ url_for('login') }}">Login</a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-primary" href="{{ url_for('register') }}">Register</a>
+                </li>
+                {% endif %}
+                {# Dark Mode Toggle Button #}
+                <li class="nav-item">
+                    <button id="darkModeToggle" class="btn btn-outline-secondary ms-2" title="Toggle Dark Mode"
+                        aria-label="Toggle Dark Mode">
+                        <i class="fas fa-moon moon-icon"></i>
+                        <i class="fas fa-sun sun-icon" style="display: none;"></i>
+                    </button>
+                </li>
             </ul>
         </div>
     </nav>
-    <div class="container mt-4">
-        <h1>Bed Availability</h1>
-        {% for bed in beds %}
-        <div class="card">
-            <div class="card-header">Bed ID: {{ bed['bed_id'][:8] }}</div>
-            <div class="card-body">
-                <p class="card-text"><strong>Ward:</strong> {{ bed['ward'] }}</p>
-                <p class="card-text"><strong>Bed Number:</strong> {{ bed['bed_number'] }}</p>
-                <p class="card-text"><strong>Bed Type:</strong> {{ bed['bed_type'] }}</p>
-                <p class="card-text"><strong>Status:</strong> <span class="{{ 'text-success' if bed['status'] == 'Available' else 'text-danger' }}">{{ bed['status'] }}</span></p>
-                <a href="#" class="btn btn-sm btn-outline-info">View Details</a>
-            </div>
+
+
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            {# Use Bootstrap 5 close button class #}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endfor %}
-        <br>
-        <a href="{{ url_for('add_bed') }}" class="btn btn-primary">Add New Bed</a>
+        {% endif %}
+        {% endwith %}
     </div>
+
+
+    <div class="container my-5">
+        <div class="bed-list-container card shadow-sm"> {# Use card and shadow classes #}
+            <div class="card-body"> {# Wrap content in card-body #}
+                <h1>Bed Availability</h1>
+
+                {# --- NEW: Add New Bed Button above the list, centered --- #}
+                {% if session.get('user_type') == 'hospital' %} {# Only show button for hospital users #}
+                <div class="add-bed-button-container">
+                    <a href="{{ url_for('add_bed') }}" class="btn btn-primary">Add New Bed</a>
+                </div>
+                {% endif %}
+                {# --- END NEW --- #}
+
+
+                {% if grouped_beds is none or (grouped_beds['Available'] | length == 0 and grouped_beds['Occupied'] | length == 0) %}
+                    <p class="text-center text-muted">No beds registered yet.</p>
+                {% else %}
+
+                    {# --- Display Available Beds Group --- #}
+                    {# Check if there are any Available beds #}
+                    {% if grouped_beds['Available'] %}
+                        <h2 class="status-group-heading available-beds-heading">Available Beds</h2>
+                        {# Loop through wards in the Available group #}
+                        {% for ward, beds_in_ward in grouped_beds['Available'].items() %}
+                            <h3 class="ward-heading">{{ ward }}</h3>
+                            {# Loop through beds within this ward #}
+                            {% for bed in beds_in_ward %}
+                                <div class="bed-entry" data-bed-id="{{ bed['bed_id'] }}"> {# Container for each bed #}
+                                    {# Header always visible - Bed ID, Ward, Status, and Toggle Button #}
+                                    <div class="bed-entry-header">
+                                        <div class="bed-info">
+                                             <h5>Bed ID: {{ bed['bed_id'][:8] }}...</h5> {# Truncate ID #}
+                                             <span class="bed-ward">{{ bed['ward'] if bed['ward'] is not none else 'N/A' }}</span> {# Display Ward in header #}
+                                        </div>
+                                        <div class="bed-status-and-toggle">
+                                            {# Display status with span and classes for styling #}
+                                            <span class="bed-status-span status-{{ bed['status'] }}">{{ bed['status'] }}</span>
+                                            {# Button to toggle details - Add data attributes here #}
+                                            <button class="btn btn-sm btn-outline-info toggle-details-btn" type="button"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#bedDetails_{{ bed['bed_id'] }}"
+                                                    aria-expanded="false"
+                                                    aria-controls="bedDetails_{{ bed['bed_id'] }}">
+                                                View Details {# Initial button text #}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {# Collapsible div for full details - Initially hidden #}
+                                    {# Using Bootstrap's collapse component #}
+                                    <div class="collapse bed-details-body" id="bedDetails_{{ bed['bed_id'] }}">
+                                        {# Display additional bed details #}
+                                        <p><strong>Bed Number:</strong> {{ bed['bed_number'] if bed['bed_number'] is not none else 'N/A' }}</p>
+                                        <p><strong>Bed Type:</strong> {{ bed['bed_type'] if bed['bed_type'] is not none else 'N/A' }}</p>
+                                        {# Patient currently occupying the bed (if status is Occupied) #}
+                                        {% if bed['status'] == 'Occupied' %}
+                                            <p><strong>Occupied by:</strong> Patient details not available</p>
+                                        {% endif %}
+
+                                        {# Optional: Add actions here, e.g., View Patient, Discharge, etc. #}
+                                        {# <div class="mt-3">
+                                            <a href="#" class="btn btn-sm btn-outline-secondary">View Patient</a>
+                                            <a href="#" class="btn btn-sm btn-outline-success">Discharge Patient</a>
+                                        </div> #}
+                                    </div>
+                                </div>
+                            {% endfor %} {# End bed loop for this ward #}
+                        {% endfor %} {# End ward loop for Available #}
+                    {% endif %} {# End check for Available beds #}
+
+
+                    {# --- Display Occupied Beds Group --- #}
+                    {# Check if there are any Occupied beds #}
+                    {% if grouped_beds['Occupied'] %}
+                        {# Add a separator if there were Available beds #}
+                        {% if grouped_beds['Available'] %}<hr class="my-5">{% endif %}
+                        <h2 class="status-group-heading occupied-beds-heading">Occupied Beds</h2>
+                        {# Loop through wards in the Occupied group #}
+                        {% for ward, beds_in_ward in grouped_beds['Occupied'].items() %}
+                            <h3 class="ward-heading">{{ ward }}</h3>
+                            {# Loop through beds within this ward #}
+                            {% for bed in beds_in_ward %}
+                                <div class="bed-entry" data-bed-id="{{ bed['bed_id'] }}"> {# Container for each bed #}
+                                    {# Header always visible - Bed ID, Ward, Status, and Toggle Button #}
+                                    <div class="bed-entry-header">
+                                        <div class="bed-info">
+                                             <h5>Bed ID: {{ bed['bed_id'][:8] }}...</h5> {# Truncate ID #}
+                                             <span class="bed-ward">{{ bed['ward'] if bed['ward'] is not none else 'N/A' }}</span> {# Display Ward in header #}
+                                        </div>
+                                        <div class="bed-status-and-toggle">
+                                            {# Display status with span and classes for styling #}
+                                            <span class="bed-status-span status-{{ bed['status'] }}">{{ bed['status'] }}</span>
+                                            {# Button to toggle details - Add data attributes here #}
+                                            <button class="btn btn-sm btn-outline-info toggle-details-btn" type="button"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#bedDetails_{{ bed['bed_id'] }}"
+                                                    aria-expanded="false"
+                                                    aria-controls="bedDetails_{{ bed['bed_id'] }}">
+                                                View Details {# Initial button text #}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {# Collapsible div for full details - Initially hidden #}
+                                    {# Using Bootstrap's collapse component #}
+                                    <div class="collapse bed-details-body" id="bedDetails_{{ bed['bed_id'] }}">
+                                        {# Display additional bed details #}
+                                        <p><strong>Bed Number:</strong> {{ bed['bed_number'] if bed['bed_number'] is not none else 'N/A' }}</p>
+                                        <p><strong>Bed Type:</strong> {{ bed['bed_type'] if bed['bed_type'] is not none else 'N/A' }}</p>
+                                        {# Patient currently occupying the bed (if status is Occupied) #}
+                                        {% if bed['status'] == 'Occupied' %}
+                                            <p><strong>Occupied by:</strong> Patient details not available</p>
+                                        {% endif %}
+
+                                        {# Optional: Add actions here, e.g., View Patient, Discharge, etc. #}
+                                        {# <div class="mt-3">
+                                            <a href="#" class="btn btn-sm btn-outline-secondary">View Patient</a>
+                                            <a href="#" class="btn btn-sm btn-outline-success">Discharge Patient</a>
+                                        </div> #}
+                                    </div>
+                                </div>
+                            {% endfor %} {# End bed loop for this ward #}
+                        {% endfor %} {# End ward loop for Occupied #}
+                    {% endif %} {# End check for Occupied beds #}
+
+                {% endif %} {# End check for any beds #}
+
+
+                {# --- Keep Back to Dashboard button at the bottom --- #}
+                <div class="mt-4"> {# Add margin top #}
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
+                </div>
+                {# --- END Keep Back to Dashboard button at the bottom --- #}
+
+            </div>
+        </div>
+    </div>
+
+
+    <footer class="bg-white border-top py-4 text-center" data-aos="fade-up">
+        <div class="container">
+            <p class="mb-0 text-muted">&copy; 2025 Hospital Management System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    {# Include the entire chatbot HTML structure from index.html #}
+    <div id="chatbot-container">
+        <button id="chatbot-toggle-btn" class="btn btn-primary rounded-circle shadow-lg">
+            <i class="fas fa-comment-dots"></i> {# Chat icon #}
+        </button>
+        <div id="chat-window" class="shadow-lg rounded" style="display: none;"> {# Initially hidden #}
+            <div id="chat-header"
+                class="bg-primary text-white rounded-top d-flex justify-content-between align-items-center p-2">
+                <h5 class="mb-0">HMS Chatbot</h5>
+                <button id="chat-close-btn" class="btn btn-sm btn-outline-light border-0">
+                    <i class="fas fa-times"></i> {# Close icon #}
+                </button>
+            </div>
+            <div id="chat-body" class="p-2">
+                {# Chat messages will appear here #}
+                <div class="chat-message bot-message">Welcome! How can I help you today?</div>
+            </div>
+            <div id="chat-input-area" class="p-2 border-top d-flex">
+                <input type="text" id="chat-input" class="form-control me-2" placeholder="Type a message...">
+                <button id="chat-send-btn" class="btn btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+
+    <button id="scrollTopBtn" class="btn btn-primary position-fixed" style="bottom: 20px; right: 20px; display: none;">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+
+    {# Using Bootstrap 5 JS bundle #}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    {# Include Chart.js if your script.js uses it, or if you plan to add charts #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    {# Define URL variables for script.js and inline scripts using Jinja2 #}
+    <script>
+        // Define global JavaScript variables using Flask's Jinja2 url_for function
+        // These variables will be accessible in your script.js file and inline scripts
+        const systemStatsUrl = "{{ url_for('get_system_stats') }}";
+        const recentActivitiesUrl = "{{ url_for('get_recent_activities') }}";
+        const nowServingUrl = "{{ url_for('get_now_serving') }}";
+        const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
+        const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
+        const deductInventoryUrl = "{{ url_for('deduct_inventory_item') }}"; // Include if script.js needs it
+        // Add any other URLs needed by script.js here
+
+        // Declare chart variables globally if script.js expects them (only if script.js is shared)
+        // var admissionsChart;
+        // var dailyOpdChart;
+        // var monthlyOpdChart;
+    </script>
+
+    {# Link to your custom JavaScript file - Load AFTER libraries and URL variables #}
+    {# Ensure your script.js contains the dark mode toggle and other shared logic #}
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- AOS Initialization ---
+            // If AOS.init() is not in script.js, initialize it here
+            if (typeof AOS !== 'undefined') {
+                AOS.init();
+            } else {
+                console.warn("AOS library not found. Skipping AOS initialization in list_beds.html.");
+            }
+
+            // --- Dark Mode Toggle and Scroll-to-Top Setup ---
+            // These are assumed to be handled by your main script.js file
+            // because it's included with 'defer'. Do NOT duplicate that logic here.
+
+            // --- Bed Details Toggle Button Text Logic ---
+            // Select all buttons that trigger collapse for bed details
+            const toggleButtons = document.querySelectorAll('.bed-entry-header .toggle-details-btn');
+
+            toggleButtons.forEach(button => {
+                // Get the target collapse element using the data-bs-target attribute
+                const targetId = button.getAttribute('data-bs-target');
+                const targetElement = document.querySelector(targetId);
+
+                if (targetElement) {
+                    // Add listeners for Bootstrap's collapse events on the TARGET element
+                    targetElement.addEventListener('show.bs.collapse', function () {
+                        // When the details are shown, change button text to 'Hide Details'
+                        button.textContent = 'Hide Details';
+                        // Optional: Change button style when expanded
+                        button.classList.remove('btn-outline-info');
+                        button.classList.add('btn-info');
+                    });
+
+                    targetElement.addEventListener('hide.bs.collapse', function () {
+                        // When the details are hidden, change button text back to 'View Details'
+                        button.textContent = 'View Details';
+                        // Optional: Change button style when collapsed
+                         button.classList.remove('btn-info');
+                         button.classList.add('btn-outline-info');
+                    });
+
+                     // Initial state check on page load
+                    // Check if the target element already has the 'show' class (e.g., if page reloaded with expanded section)
+                    if (targetElement.classList.contains('show')) {
+                         button.textContent = 'Hide Details';
+                         button.classList.remove('btn-outline-info');
+                         button.classList.add('btn-info');
+                    } else {
+                         button.textContent = 'View Details';
+                         button.classList.remove('btn-info');
+                         button.classList.add('btn-outline-info');
+                    }
+
+
+                } else {
+                    console.warn(`Collapse target element not found for button with target: ${targetId}`);
+                }
+            });
+            // --- End Bed Details Toggle Button Text Logic ---
+
+
+        }); // End DOMContentLoaded
+    </script>
+
 </body>
+
 </html>

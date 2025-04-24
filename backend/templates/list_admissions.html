@@ -1,42 +1,611 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Current Admissions</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    {# Using Bootstrap 5 for consistency #}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='index_style.css') }}">
+
+    <style>
+        /* Add any specific styles for the admissions page here */
+        .admissions-container {
+            margin-top: 30px;
+            padding: 30px;
+            /* Increased padding */
+            background-color: var(--card-bg-color);
+            /* Use CSS variable for background */
+            border-radius: 12px;
+            /* More rounded corners */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            /* Softer, larger shadow */
+        }
+
+        .admissions-container h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            /* Space below heading */
+            color: var(--text-color);
+            /* Use CSS variable */
+            font-weight: 700;
+            /* Bolder heading */
+        }
+
+        /* Dark mode adjustments for the container */
+        body.dark-mode .admissions-container {
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.15);
+            /* Adjust shadow for dark mode */
+        }
+
+        /* --- Table Specific Styling --- */
+
+        /* Ensure Bootstrap table styles also respect dark mode */
+        [data-bs-theme="dark"] .table {
+            color: var(--text-color);
+            border-color: var(--dark-mode-border-color);
+        }
+
+        [data-bs-theme="dark"] .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-bs-theme="dark"] .table-hover tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.07);
+        }
+
+        /* Add padding to table cells for better readability */
+        .table td, .table th {
+            padding: 12px; /* Increased padding */
+            vertical-align: middle; /* Vertically align content */
+        }
+
+
+        /* Style for the container holding the Admit New Patient button */
+        .admit-patient-button-container {
+            display: flex;
+            justify-content: center;
+            /* Center horizontally */
+            text-align: center;
+            /* Center text within the container (less critical for button) */
+            margin-bottom: 20px;
+            /* Space below the button */
+        }
+
+        /* Style for the container holding the bottom buttons */
+         .bottom-buttons-container {
+             margin-top: 30px; /* Space above buttons */
+             display: flex; /* Use flexbox for button spacing */
+             flex-wrap: wrap; /* Allow buttons to wrap on small screens */
+             gap: 10px; /* Space between buttons */
+             justify-content: center; /* Center buttons at the bottom */
+         }
+
+         /* Style for sortable table headers */
+         .table th.sortable {
+             cursor: pointer; /* Indicate that the header is clickable */
+             position: relative; /* Needed for absolute positioning of sort icons */
+             padding-right: 25px; /* Make more space for the sort icon */
+             transition: background-color 0.2s ease; /* Smooth transition on hover */
+         }
+
+         .table th.sortable:hover {
+             background-color: rgba(0, 0, 0, 0.03); /* Subtle hover effect */
+         }
+          [data-bs-theme="dark"] .table th.sortable:hover {
+               background-color: rgba(255, 255, 255, 0.05); /* Subtle hover effect in dark mode */
+          }
+
+
+         .table th.sortable .sort-icon {
+             position: absolute;
+             right: 8px; /* Position the icon to the right */
+             top: 50%;
+             transform: translateY(-50%); /* Vertically center the icon */
+             font-size: 0.8em; /* Make the icon slightly smaller */
+             color: var(--secondary-text-color); /* Muted color for icons */
+             opacity: 0.6; /* Make icon slightly transparent when not active */
+             transition: opacity 0.2s ease; /* Smooth transition for opacity */
+         }
+
+          .table th.sortable:hover .sort-icon {
+              opacity: 1; /* Make icon fully visible on hover */
+          }
+
+
+         .table th.sortable.asc .sort-icon::after {
+             content: '\25B2'; /* Up arrow for ascending */
+         }
+
+         .table th.sortable.desc .sort-icon::after {
+             content: '\25BC'; /* Down arrow for descending */
+         }
+
+          /* Dark mode adjustments for sort icons */
+         [data-bs-theme="dark"] .table th.sortable .sort-icon {
+              color: var(--dark-mode-secondary-text-color);
+         }
+
+         /* Style for truncated IDs */
+         .truncated-id {
+             font-size: 0.9em; /* Smaller font size for truncated IDs */
+             color: var(--secondary-text-color); /* Muted color */
+         }
+         [data-bs-theme="dark"] .truncated-id {
+              color: var(--dark-mode-secondary-text-color);
+         }
+
+         /* Style for the status cell to give it some space */
+         .admissions-status-cell {
+             min-width: 100px; /* Give status column some width */
+         }
+
+         /* Style for the actions cell */
+         .admissions-actions-cell {
+             min-width: 120px; /* Give actions column some width */
+         }
+
+
+    </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Current Admissions</h1>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Admission ID</th>
-                    <th>Patient Name</th>
-                    <th>Bed ID</th>
-                    <th>Admission Time</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for admission in admissions %}
-                <tr>
-                    <td>{{ admission['admission_id'][:8] }}</td>
-                    <td>{{ admission['patient_name'] }}</td>
-                    <td>{{ admission['bed_id'][:8] }}</td>
-                    <td>{{ admission['admission_time'] }}</td>
-                    <td>{{ admission['status'] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <br>
-        <a href="{{ url_for('admit_patient') }}" class="btn btn-primary">Admit New Patient</a>
-        <br>
-        <a href="{{ url_for('list_beds') }}" class="btn btn-secondary">View Bed Availability</a>
-        <br>
-        <a href="{{ url_for('list_patients') }}" class="btn btn-secondary">View Patients</a>
-        <br>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Main</a>
+
+{# Apply dark mode attribute to body based on Flask variable (if you track theme backend-side) #}
+
+<body {% if g.get('theme')=='dark' %}data-bs-theme="dark" {% endif %}>
+
+    <div id="loader-wrapper">
+        <div class="loader"></div>
     </div>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm px-4" data-aos="fade-down">
+        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('index') }}">🏥 HMS</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+            <ul class="navbar-nav">
+                {% if session.get('user_id') %}
+                {# Add all your standard navigation links here, copied from index.html #}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_patients' %}active{% endif %}"
+                        href="{{ url_for('list_patients') }}">Patients</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'view_opd_queue' %}active{% endif %}"
+                        href="{{ url_for('view_opd_queue') }}">OPD</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_beds' %}active{% endif %}"
+                        href="{{ url_for('list_beds') }}">Beds</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_admissions' %}active{% endif %}"
+                        href="{{ url_for('list_admissions') }}">Admissions</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'view_inventory' %}active{% endif %}"
+                        href="{{ url_for('view_inventory') }}">Inventory</a>
+                </li>
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav">
+                {% if session.get('user_id') %}
+                <li class="nav-item">
+                    {# The clickable profile link #}
+                    <a class="nav-link navbar-text me-2" href="{{ url_for('view_profile') }}" style="cursor: pointer;">
+                        Welcome, {{ session.get('user_email') }}!
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
+                </li>
+                {% else %}
+                {# Login/Register links if not logged in #}
+                <li class="nav-item">
+                    <a class="btn btn-outline-primary me-2" href="{{ url_for('login') }}">Login</a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-primary" href="{{ url_for('register') }}">Register</a>
+                </li>
+                {% endif %}
+                {# Dark Mode Toggle Button #}
+                <li class="nav-item">
+                    <button id="darkModeToggle" class="btn btn-outline-secondary ms-2" title="Toggle Dark Mode"
+                        aria-label="Toggle Dark Mode">
+                        <i class="fas fa-moon moon-icon"></i>
+                        <i class="fas fa-sun sun-icon" style="display: none;"></i>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+
+
+    <div class="container my-5">
+        <div class="admissions-container card shadow-sm"> {# Use card and shadow classes #}
+            <div class="card-body"> {# Wrap content in card-body #}
+                <h1>Current Admissions</h1>
+
+                {# --- Add Admit New Patient Button above the table, centered --- #}
+                {# Assuming 'can_admit_patient' is passed from backend based on user type #}
+                 {% if session.get('user_type') in ['hospital', 'doctor'] %} {# Only show for hospital or doctor users #}
+                <div class="admit-patient-button-container">
+                    <a href="{{ url_for('admit_patient') }}" class="btn btn-primary">Admit New Patient</a>
+                </div>
+                 {% endif %}
+
+
+                {% if admissions is none or admissions | length == 0 %} {# Display message if no admissions #}
+                <p class="text-center text-muted">No current admissions found.</p>
+                {% else %}
+
+                <div class="table-responsive"> {# Make table responsive on small screens #}
+                    <table class="table table-striped table-hover align-middle" id="admissionsTable"> {# Added ID for JS #}
+                        <thead>
+                            <tr>
+                                <th>Admission ID</th>
+                                <th class="sortable" data-sort-key="patient_name" title="Click to sort">Patient Name <span class="sort-icon"></span></th> {# Added sortable class, data attribute, and title tooltip #}
+                                <th>Bed ID</th>
+                                <th class="sortable" data-sort-key="admission_time" data-sort-type="date" title="Click to sort">Admission Time <span class="sort-icon"></span></th> {# Added sortable class, data attribute, and title tooltip #}
+                                <th class="admissions-status-cell">Status</th> {# Added class for width #}
+                                {# Only show Actions column if user can manage admissions (hospital or doctor) #}
+                                {% if session.get('user_type') in ['hospital', 'doctor'] %}
+                                <th class="admissions-actions-cell">Actions</th> {# Added class for width #}
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for admission in admissions %}
+                            <tr data-admission-id="{{ admission['admission_id'] }}"> {# Add data attribute for JS #}
+                                <td><span class="truncated-id">{{ admission['admission_id'][:8] }}...</span></td> {# Wrap truncated ID in span #}
+                                <td>{{ admission['patient_name'] }}</td>
+                                <td><span class="truncated-id">{{ admission['bed_id'][:8] }}...</span></td> {# Wrap truncated Bed ID in span #}
+                                <td>{{ admission['admission_time'] }}</td>
+                                <td class="admissions-status-cell">
+                                    {# Display status with span and classes for styling (optional, but good practice) #}
+                                     <span class="status-span status-{{ admission['status'] }}">{{ admission['status'] }}</span>
+                                </td>
+                                {# Only show Actions cell if user can manage admissions #}
+                                {% if session.get('user_type') in ['hospital', 'doctor'] %}
+                                <td class="admissions-actions-cell">
+                                    {# Add Discharge Button if status is 'Admitted' #}
+                                    {% if admission['status'] == 'Admitted' %}
+                                        <button class="btn btn-sm btn-danger discharge-btn" data-admission-id="{{ admission['admission_id'] }}">Discharge</button>
+                                    {% else %}
+                                        {# Display a placeholder or message for completed/other statuses #}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div> {# Close table-responsive #}
+
+                {% endif %} {# End check for empty admissions #}
+
+
+                {# --- Keep bottom buttons --- #}
+                <div class="mt-4 bottom-buttons-container"> {# Added bottom-buttons-container class #}
+                    {# Removed the Admit New Patient button from here #}
+                    <a href="{{ url_for('list_beds') }}" class="btn btn-secondary">View Bed Availability</a>
+                    <a href="{{ url_for('list_patients') }}" class="btn btn-secondary">View Patients</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
+                </div>
+                {# --- END bottom buttons --- #}
+
+            </div>
+        </div>
+    </div>
+
+
+    <footer class="bg-white border-top py-4 text-center" data-aos="fade-up">
+        <div class="container">
+            <p class="mb-0 text-muted">&copy; 2025 Hospital Management System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    {# Include the entire chatbot HTML structure from index.html #}
+    <div id="chatbot-container">
+        <button id="chatbot-toggle-btn" class="btn btn-primary rounded-circle shadow-lg">
+            <i class="fas fa-comment-dots"></i> {# Chat icon #}
+        </button>
+        <div id="chat-window" class="shadow-lg rounded" style="display: none;"> {# Initially hidden #}
+            <div id="chat-header"
+                class="bg-primary text-white rounded-top d-flex justify-content-between align-items-center p-2">
+                <h5 class="mb-0">HMS Chatbot</h5>
+                <button id="chat-close-btn" class="btn btn-sm btn-outline-light border-0">
+                    <i class="fas fa-times"></i> {# Close icon #}
+                </button>
+            </div>
+            <div id="chat-body" class="p-2">
+                {# Chat messages will appear here #}
+                <div class="chat-message bot-message">Welcome! How can I help you today?</div>
+            </div>
+            <div id="chat-input-area" class="p-2 border-top d-flex">
+                <input type="text" id="chat-input" class="form-control me-2" placeholder="Type a message...">
+                <button id="chat-send-btn" class="btn btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+
+    <button id="scrollTopBtn" class="btn btn-primary position-fixed" style="bottom: 20px; right: 20px; display: none;">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+
+    {# Using Bootstrap 5 JS bundle #}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    {# Include Chart.js if your script.js uses it, or if you plan to add charts #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    {# Define URL variables for script.js and inline scripts using Jinja2 #}
+    <script>
+        // Define global JavaScript variables using Flask's Jinja2 url_for function
+        // These variables will be accessible in your script.js file and inline scripts
+        const systemStatsUrl = "{{ url_for('get_system_stats') }}";
+        const recentActivitiesUrl = "{{ url_for('get_recent_activities') }}";
+        const nowServingUrl = "{{ url_for('get_now_serving') }}";
+        const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
+        const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
+        const deductInventoryUrl = "{{ url_for('deduct_inventory_item') }}"; // Include if script.js needs it
+        // Add the URL for the new discharge endpoint
+        const dischargePatientUrl = "{{ url_for('discharge_patient') }}";
+
+
+        // Declare chart variables globally if script.js expects them (only if script.js is shared)
+        // var admissionsChart;
+        // var dailyOpdChart;
+        // var monthlyOpdChart;
+    </script>
+
+    {# Link to your custom JavaScript file - Load AFTER libraries and URL variables #}
+    {# Ensure your script.js contains the dark mode toggle and other shared logic #}
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- AOS Initialization ---
+            // If AOS.init() is not in script.js, initialize it here
+            if (typeof AOS !== 'undefined') {
+                AOS.init();
+            } else {
+                console.warn("AOS library not found. Skipping AOS initialization in list_admissions.html.");
+            }
+
+            // --- Dark Mode Toggle and Scroll-to-Top Setup ---
+            // These are assumed to be handled by your main script.js file
+            // because it's included with 'defer'. Do NOT duplicate that logic here.
+
+
+            // --- Table Sorting Logic ---
+            const getCellValue = (tr, idx, type) => {
+                const cell = tr.children[idx];
+                let value = cell.textContent || cell.innerText;
+
+                if (type === 'date') {
+                    // Attempt to parse date strings for comparison
+                    try {
+                         // Use a more robust date parsing approach if needed,
+                         // but for standard ISO 8601 or similar, Date constructor is often sufficient.
+                        return new Date(value);
+                    } catch (e) {
+                        console.error("Failed to parse date for sorting:", value, e);
+                        return new Date(0); // Return a very old date on error
+                    }
+                }
+                 // Handle numerical sorting if needed (e.g., if you add a numerical column)
+                // if (type === 'number') {
+                //     return parseFloat(value) || 0;
+                // }
+
+                return value; // Default to string comparison
+            };
+
+            const comparer = (idx, asc, type) => (a, b) => {
+                const va = getCellValue(asc ? a : b, idx, type);
+                const vb = getCellValue(asc ? b : a, idx, type);
+
+                if (typeof va === 'string' && typeof vb === 'string') {
+                     // Case-insensitive string comparison
+                     return va.localeCompare(vb, undefined, { sensitivity: 'base' });
+                } else if (va instanceof Date && vb instanceof Date) {
+                    // Date comparison
+                    return va - vb;
+                }
+                 // Default comparison for other types (numbers, etc.)
+                return va > vb ? 1 : va < vb ? -1 : 0;
+            };
+
+
+            document.querySelectorAll('#admissionsTable th.sortable').forEach(headerCell => {
+                headerCell.addEventListener('click', () => {
+                    const table = headerCell.closest('table');
+                    const tbody = table.querySelector('tbody');
+                    const headerIndex = Array.from(headerCell.parentNode.children).indexOf(headerCell);
+                    const sortKey = headerCell.dataset.sortKey;
+                    const sortType = headerCell.dataset.sortType; // Get sort type (e.g., 'date')
+
+                    // Determine sort direction
+                    const currentSortDirection = headerCell.dataset.sortDirection || 'none';
+                    let newSortDirection = 'asc'; // Default to ascending
+                    if (currentSortDirection === 'asc') {
+                        newSortDirection = 'desc';
+                    } else if (currentSortDirection === 'desc') {
+                         newSortDirection = 'none'; // Cycle back to no sort
+                    }
+
+
+                    // Remove sort classes and data attributes from other headers
+                    document.querySelectorAll('#admissionsTable th.sortable').forEach(cell => {
+                        if (cell !== headerCell) {
+                            cell.classList.remove('asc', 'desc');
+                            cell.dataset.sortDirection = 'none'; // Reset data attribute
+                        }
+                    });
+
+                    // Apply new sort direction class and data attribute to the clicked header
+                     headerCell.classList.remove('asc', 'desc'); // Remove existing
+                     if (newSortDirection !== 'none') {
+                         headerCell.classList.add(newSortDirection);
+                     }
+                    headerCell.dataset.sortDirection = newSortDirection;
+
+
+                    // Get rows and sort them
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+                    if (newSortDirection === 'none') {
+                         // If no sort, revert to original order (requires storing original order or re-fetching)
+                         // For simplicity, we'll just display in the current unsorted state.
+                         // A more robust solution would store original row order or re-fetch.
+                         console.warn("Reverting to unsorted state. Original order not preserved.");
+                         // To revert to original order, you would need to save the initial state of tbody.innerHTML
+                         // or the rows array and restore it here.
+                         // For now, we'll just skip sorting if direction is 'none'.
+                         // Re-append in current order (which is the last sorted order)
+                         rows.forEach(row => tbody.appendChild(row));
+                         return; // Exit the click handler
+                    }
+
+
+                    rows.sort(comparer(headerIndex, newSortDirection === 'asc', sortType));
+
+                    // Re-append sorted rows
+                    rows.forEach(row => tbody.appendChild(row));
+                });
+            });
+            // --- End Table Sorting Logic ---
+
+
+            // --- Discharge Patient Logic ---
+            // Use event delegation on the table body to handle clicks on Discharge buttons
+            const admissionsTableBody = document.querySelector('#admissionsTable tbody');
+
+            if (admissionsTableBody) {
+                admissionsTableBody.addEventListener('click', function(event) {
+                    // Check if the clicked element or its parent is a discharge-btn
+                    const dischargeButton = event.target.closest('.discharge-btn');
+
+                    if (dischargeButton) {
+                        const admissionId = dischargeButton.dataset.admissionId;
+
+                        // Optional: Confirmation dialog
+                        if (!confirm('Are you sure you want to discharge this patient?')) {
+                            return; // User cancelled
+                        }
+
+                        // Disable the button to prevent multiple clicks
+                        dischargeButton.disabled = true;
+                        dischargeButton.textContent = 'Discharging...'; // Provide feedback
+
+                        // Send an AJAX request to discharge the patient
+                         // Ensure dischargePatientUrl is defined globally in the HTML script block
+                         if (typeof dischargePatientUrl === 'undefined') {
+                              console.error("dischargePatientUrl is not defined!");
+                              alert("An internal error occurred (discharge URL missing).");
+                              dischargeButton.disabled = false; // Re-enable button
+                              dischargeButton.textContent = 'Discharge'; // Reset button text
+                              return;
+                         }
+
+
+                        fetch(dischargePatientUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded', // Standard form encoding
+                            },
+                            body: new URLSearchParams({ // Encode data for form submission
+                                'admission_id': admissionId
+                            })
+                        })
+                            .then(response => {
+                                // Check if the response is OK (status 200-299)
+                                if (!response.ok) {
+                                    // If not OK, parse JSON error response and throw error
+                                    return response.json().then(errorData => {
+                                        throw new Error(errorData.message || 'Failed to discharge patient.');
+                                    });
+                                }
+                                // If OK, parse the JSON success response
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (data.success) {
+                                    // Update the UI for the discharged row
+                                    const row = dischargeButton.closest('tr');
+                                    if (row) {
+                                        // Find the status cell (assuming it's the 5th cell, index 4)
+                                        const statusCell = row.children[4];
+                                        if (statusCell) {
+                                            statusCell.textContent = 'Completed'; // Update status text
+                                            // Optional: Update status styling if you have classes for 'Completed'
+                                            // statusCell.classList.remove('status-Admitted');
+                                            // statusCell.classList.add('status-Completed');
+                                        }
+
+                                        // Remove the discharge button from the actions cell
+                                        const actionsCell = dischargeButton.closest('td');
+                                        if (actionsCell) {
+                                            actionsCell.innerHTML = '<span class="text-muted">-</span>'; // Replace button with placeholder
+                                        }
+
+                                        console.log('Patient discharged:', data.message);
+                                        // Optional: Show a success message to the user (e.g., using flash messages or a temporary div)
+                                    } else {
+                                         console.warn("Could not find table row for discharged patient.");
+                                    }
+                                } else {
+                                    console.error('Discharge failed:', data.message);
+                                    // Re-enable button on failure
+                                    dischargeButton.disabled = false;
+                                    dischargeButton.textContent = 'Discharge'; // Reset button text
+                                    // Optionally show an error message to the user
+                                    alert('Failed to discharge patient: ' + data.message); // Use alert for simplicity
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error sending discharge request:', error);
+                                // Re-enable button on failure
+                                dischargeButton.disabled = false;
+                                dischargeButton.textContent = 'Discharge'; // Reset button text
+                                // Optionally show an error message to the user
+                                alert('An error occurred during discharge: ' + error.message); // Use alert for simplicity
+                            });
+                    }
+                });
+            } else {
+                console.warn("Admissions table body not found for discharge logic.");
+            }
+
+        }); // End DOMContentLoaded
+    </script>
+
 </body>
+
 </html>

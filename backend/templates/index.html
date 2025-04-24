@@ -252,6 +252,32 @@
         </div>
     </section>
 
+    <section class="container my-5" data-aos="fade-up">
+        <h2 class="text-center mb-4">OPD Bookings Overview</h2>
+        <div class="row g-4"> {# Use g-4 for gutter #}
+            <div class="col-md-6"> {# Half width for each chart on medium/large screens #}
+                <div class="card shadow-sm h-100"> {# Card styling #}
+                    <div class="card-body">
+                        <h5 class="card-title text-center">Today's OPD Bookings by Department</h5>
+                        <div class="chart-container" style="position: relative; height: 300px; width: 100%;"> {# Adjust height as needed #}
+                            <canvas id="dailyOpdChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6"> {# Half width for each chart #}
+                 <div class="card shadow-sm h-100"> {# Card styling #}
+                    <div class="card-body">
+                        <h5 class="card-title text-center">Last Month's OPD Bookings by Department</h5>
+                        <div class="chart-container" style="position: relative; height: 300px; width: 100%;"> {# Adjust height as needed #}
+                            <canvas id="monthlyOpdChart"></canvas>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Footer -->
     <footer class="bg-white border-top py-4 text-center" data-aos="fade-up">
         <div class="container">
@@ -304,10 +330,15 @@
         const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
         // Add any other endpoints needed by script.js here, e.g.:
         const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
+        const dailyOpdStatsUrl = "{{ url_for('get_daily_opd_by_department') }}"; // New URL
+        const monthlyOpdStatsUrl = "{{ url_for('get_monthly_opd_by_department') }}"; // New URL
 
         // Declare admissionsChart here so it's in a scope accessible globally by script.js
         // It will be initialized within script.js
         var admissionsChart;
+        var dailyOpdChart;
+        var monthlyOpdChart; 
+
     </script>
     {# Link to your consolidated custom JavaScript file - Load AFTER libraries and URL variables #}
     <script src="{{ url_for('static', filename='script.js') }}" defer></script>

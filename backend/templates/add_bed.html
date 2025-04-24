@@ -1,36 +1,341 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add New Bed</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    {# Using Bootstrap 5 for consistency #}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='index_style.css') }}">
+
+    <style>
+        /* Add any specific styles for the add bed page here */
+        .add-bed-container {
+            max-width: 600px;
+            /* Limit form width */
+            margin: 30px auto;
+            /* Center and add top margin */
+            padding: 30px;
+            background-color: var(--card-bg-color);
+            /* Use CSS variable for background */
+            border-radius: 12px;
+            /* More rounded corners */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            /* Softer, larger shadow */
+        }
+
+        .add-bed-container h1 {
+            text-align: center;
+            margin-bottom: 40px;
+            /* More space below heading */
+            color: var(--text-color);
+            /* Use CSS variable */
+            font-weight: 700;
+            /* Bolder heading */
+        }
+
+         /* Style for the "Other" input fields - initially hidden */
+        .form-group-other {
+            display: none; /* Hide by default */
+            margin-top: 15px; /* Add some space above the other input */
+            padding-top: 15px; /* Add padding to visually separate */
+            border-top: 1px dashed var(--border-color); /* Add a dashed border */
+        }
+
+        .form-group-other label {
+            font-style: italic; /* Italicize the "Other" label */
+            color: var(--secondary-text-color); /* Use a slightly different color */
+        }
+
+
+        /* Dark mode adjustments */
+        body.dark-mode .add-bed-container {
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.15);
+            /* Adjust shadow for dark mode */
+        }
+
+         body.dark-mode .form-group-other {
+             border-top-color: var(--dark-mode-border-color); /* Adjust border color in dark mode */
+         }
+
+
+        /* Ensure form controls look good in dark mode */
+        [data-bs-theme="dark"] .form-control,
+        [data-bs-theme="dark"] .form-select {
+             background-color: var(--dark-mode-input-bg);
+             color: var(--dark-mode-input-color);
+             border-color: var(--dark-mode-input-border);
+        }
+
+        [data-bs-theme="dark"] .form-control::placeholder {
+             color: var(--dark-mode-input-placeholder);
+        }
+
+    </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Add New Bed</h1>
-        <form method="POST" action="{{ url_for('add_bed') }}">
-            <div class="form-group">
-                <label for="ward">Ward:</label>
-                <input type="text" class="form-control" id="ward" name="ward" required>
-            </div>
-            <div class="form-group">
-                <label for="bed_number">Bed Number/ID:</label>
-                <input type="text" class="form-control" id="bed_number" name="bed_number" required>
-            </div>
-            <div class="form-group">
-                <label for="bed_type">Bed Type:</label>
-                <select class="form-control" id="bed_type" name="bed_type">
-                    <option value="General">General</option>
-                    <option value="ICU">ICU</option>
-                    <option value="Emergency">Emergency</option>
-                    <option value="Private">Private</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Bed</button>
-        </form>
-        <br>
-        <a href="{{ url_for('list_beds') }}" class="btn btn-secondary">View Bed Availability</a>
-        <br>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Main</a>
+
+{# Apply dark mode attribute to body based on Flask variable (if you track theme backend-side) #}
+
+<body {% if g.get('theme')=='dark' %}data-bs-theme="dark" {% endif %}>
+
+    <div id="loader-wrapper">
+        <div class="loader"></div>
     </div>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm px-4" data-aos="fade-down">
+        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('index') }}">🏥 HMS</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+            <ul class="navbar-nav">
+                {% if session.get('user_id') %}
+                {# Add all your standard navigation links here, copied from index.html #}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_patients' %}active{% endif %}"
+                        href="{{ url_for('list_patients') }}">Patients</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'view_opd_queue' %}active{% endif %}"
+                        href="{{ url_for('view_opd_queue') }}">OPD</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_beds' %}active{% endif %}"
+                        href="{{ url_for('list_beds') }}">Beds</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'list_admissions' %}active{% endif %}"
+                        href="{{ url_for('list_admissions') }}">Admissions</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'view_inventory' %}active{% endif %}"
+                        href="{{ url_for('view_inventory') }}">Inventory</a>
+                </li>
+                {% endif %}
+            </ul>
+            <ul class="navbar-nav">
+                {% if session.get('user_id') %}
+                <li class="nav-item">
+                    {# The clickable profile link #}
+                    <a class="nav-link navbar-text me-2" href="{{ url_for('view_profile') }}" style="cursor: pointer;">
+                        Welcome, {{ session.get('user_email') }}!
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
+                </li>
+                {% else %}
+                {# Login/Register links if not logged in #}
+                <li class="nav-item">
+                    <a class="btn btn-outline-primary me-2" href="{{ url_for('login') }}">Login</a>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-primary" href="{{ url_for('register') }}">Register</a>
+                </li>
+                {% endif %}
+                {# Dark Mode Toggle Button #}
+                <li class="nav-item">
+                    <button id="darkModeToggle" class="btn btn-outline-secondary ms-2" title="Toggle Dark Mode"
+                        aria-label="Toggle Dark Mode">
+                        <i class="fas fa-moon moon-icon"></i>
+                        <i class="fas fa-sun sun-icon" style="display: none;"></i>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            {# Use Bootstrap 5 close button class #}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </div>
+
+
+    <div class="container my-5">
+        <div class="add-bed-container card shadow-sm"> {# Use card and shadow classes #}
+            <div class="card-body"> {# Wrap content in card-body #}
+                <h1>Add New Bed</h1>
+
+                <form method="POST" action="{{ url_for('add_bed') }}">
+                    {# Ward Dropdown #}
+                    <div class="mb-3"> {# Use mb-3 for margin bottom #}
+                        <label for="ward_select" class="form-label">Ward:</label> {# Use form-label #}
+                        <select class="form-select" id="ward_select" name="ward_select" required> {# Use form-select #}
+                            <option value="">-- Select Ward --</option>
+                            {% for department in existing_departments %}
+                            {# Pre-select option if form was submitted with error #}
+                            <option value="{{ department }}" {% if selected_ward_select == department %}selected{% endif %}>{{ department }}</option>
+                            {% endfor %}
+                            <option value="other">-- Other (Specify Below) --</option>
+                        </select>
+                    </div>
+
+                    {# Ward Other Input (Initially Hidden) #}
+                    <div class="mb-3 form-group-other" id="ward_other_group">
+                        <label for="ward_other" class="form-label">Ward (Other):</label>
+                        {# Add required attribute dynamically with JS when visible #}
+                        <input type="text" class="form-control" id="ward_other" name="ward_other" {% if selected_ward_select == 'other' %}value="{{ selected_ward_other }}"{% endif %}>
+                    </div>
+
+                    {# Bed Number/ID Input #}
+                    <div class="mb-3">
+                        <label for="bed_number" class="form-label">Bed Number/ID:</label>
+                         {# Pre-fill if form submitted with error #}
+                        <input type="text" class="form-control" id="bed_number" name="bed_number" value="{{ selected_bed_number if selected_bed_number is not none else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bed_type" class="form-label">Bed Type:</label>
+                        <select class="form-select" id="bed_type" name="bed_type"> {# Use form-select #}
+                            {# Pre-select option if form was submitted with error #}
+                            <option value="General" {% if selected_bed_type == 'General' %}selected{% endif %}>General</option>
+                            <option value="ICU" {% if selected_bed_type == 'ICU' %}selected{% endif %}>ICU</option>
+                            <option value="Emergency" {% if selected_bed_type == 'Emergency' %}selected{% endif %}>Emergency</option>
+                            <option value="Private" {% if selected_bed_type == 'Private' %}selected{% endif %}>Private</option>
+                            {# Add other bed types as needed #}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Bed</button>
+                </form>
+
+                <div class="mt-4"> {# Add margin top #}
+                    <a href="{{ url_for('list_beds') }}" class="btn btn-secondary me-2">View Bed Availability</a> {# Added me-2 for spacing #}
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <footer class="bg-white border-top py-4 text-center" data-aos="fade-up">
+        <div class="container">
+            <p class="mb-0 text-muted">&copy; 2025 Hospital Management System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    {# Include the entire chatbot HTML structure from index.html #}
+    <div id="chatbot-container">
+        <button id="chatbot-toggle-btn" class="btn btn-primary rounded-circle shadow-lg">
+            <i class="fas fa-comment-dots"></i> {# Chat icon #}
+        </button>
+        <div id="chat-window" class="shadow-lg rounded" style="display: none;"> {# Initially hidden #}
+            <div id="chat-header"
+                class="bg-primary text-white rounded-top d-flex justify-content-between align-items-center p-2">
+                <h5 class="mb-0">HMS Chatbot</h5>
+                <button id="chat-close-btn" class="btn btn-sm btn-outline-light border-0">
+                    <i class="fas fa-times"></i> {# Close icon #}
+                </button>
+            </div>
+            <div id="chat-body" class="p-2">
+                {# Chat messages will appear here #}
+                <div class="chat-message bot-message">Welcome! How can I help you today?</div>
+            </div>
+            <div id="chat-input-area" class="p-2 border-top d-flex">
+                <input type="text" id="chat-input" class="form-control me-2" placeholder="Type a message...">
+                <button id="chat-send-btn" class="btn btn-primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+
+    <button id="scrollTopBtn" class="btn btn-primary position-fixed" style="bottom: 20px; right: 20px; display: none;">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+
+    {# Using Bootstrap 5 JS bundle #}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+    {# Include Chart.js if your script.js uses it, or if you plan to add charts #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    {# Define URL variables for script.js and inline scripts using Jinja2 #}
+    <script>
+        // Define global JavaScript variables using Flask's Jinja2 url_for function
+        // These variables will be accessible in your script.js file and inline scripts
+        const systemStatsUrl = "{{ url_for('get_system_stats') }}";
+        const recentActivitiesUrl = "{{ url_for('get_recent_activities') }}";
+        const nowServingUrl = "{{ url_for('get_now_serving') }}";
+        const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
+        const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
+        const deductInventoryUrl = "{{ url_for('deduct_inventory_item') }}"; // Include if script.js needs it
+        // Add any other URLs needed by script.js here
+
+        // Declare chart variables globally if script.js expects them (only if script.js is shared)
+        // var admissionsChart;
+        // var dailyOpdChart;
+        // var monthlyOpdChart;
+    </script>
+
+    {# Link to your custom JavaScript file - Load AFTER libraries and URL variables #}
+    {# Ensure your script.js contains the dark mode toggle and other shared logic #}
+    <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // --- Ward Dropdown "Other" Logic ---
+            const wardSelect = document.getElementById('ward_select');
+            const wardOtherGroup = document.getElementById('ward_other_group');
+            const wardOtherInput = document.getElementById('ward_other');
+
+            // Function to toggle visibility and required attribute
+            function toggleOtherInput(selectElement, otherGroupElement, otherInputElement) {
+                if (selectElement.value === 'other') {
+                    otherGroupElement.style.display = 'block';
+                    otherInputElement.setAttribute('required', 'required');
+                } else {
+                    otherGroupElement.style.display = 'none';
+                    otherInputElement.removeAttribute('required');
+                    otherInputElement.value = ''; // Clear the other input when hidden
+                }
+            }
+
+            // Add event listener to the ward dropdown
+            if (wardSelect) {
+                wardSelect.addEventListener('change', function() {
+                    toggleOtherInput(wardSelect, wardOtherGroup, wardOtherInput);
+                });
+                 // Initial check on page load (important if form was submitted with error)
+                 toggleOtherInput(wardSelect, wardOtherGroup, wardOtherInput);
+            } else {
+                 console.warn("Ward select dropdown not found!");
+            }
+            // --- End Ward Dropdown "Other" Logic ---
+
+
+            // --- AOS Initialization ---
+            // If AOS.init() is not in script.js, initialize it here
+            if (typeof AOS !== 'undefined') {
+                AOS.init();
+            } else {
+                console.warn("AOS library not found. Skipping AOS initialization in add_bed.html.");
+            }
+
+            // --- Dark Mode Toggle and Scroll-to-Top Setup ---
+            // These are assumed to be handled by your main script.js file
+            // because it's included with 'defer'. Do NOT duplicate that logic here.
+
+        }); // End DOMContentLoaded
+    </script>
+
 </body>
+
 </html>
