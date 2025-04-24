@@ -66,13 +66,13 @@ def require_login():
         'dashboard', 'view_profile', # <--- Add the endpoint name for your dashboard page here
         'list_patients', 'add_patient', 'join_opd_queue', 'view_opd_queue',
         'list_beds', 'add_bed', 'list_admissions', 'admit_patient',
-        'view_inventory', 'add_inventory_item',
+        'view_inventory', 'add_inventory_item', 'get_inventory_chart_data',
         'get_system_stats', 'get_recent_activities', # Keep these
         'update_opd_status',
         'get_now_serving','chatbot_send_message',
         'get_admissions_data','get_daily_opd_by_department',
         'get_monthly_opd_by_department',
-        'deduct_inventory_item','discharge_patient'
+        'deduct_inventory_item','discharge_patient','get_low_stock_items','add_existing_inventory_item'
     ]
     # Allow access to index, login, register, and static files
     # Keep 'index' in allowed_routes if your homepage (/) is NOT the protected dashboard
@@ -1112,77 +1112,226 @@ def add_inventory_item():
                            existing_items=existing_items,
                            existing_units=existing_units)
 
-# The view_inventory route remains the same, as it's already protected
-# for all logged-in users by the @app.before_request decorator.
+# --- Inventory Routes ---
+
+# Route to view inventory (includes logic to pass permissions to template)
 @app.route('/inventory')
 def view_inventory():
-    conn = get_db()
-    inventory = conn.execute("SELECT * FROM inventory ORDER BY item_name ASC").fetchall() # Added ordering
-    close_db(conn)
+    # Assuming a decorator handles login requirement (@login_required or similar)
+    # Or check session['user_id'] if needed
+    if 'user_id' not in session:
+         flash("Please log in to view this page.", "warning")
+         return redirect(url_for('login'))
 
-    # Determine if the logged-in user can add or deduct inventory for template logic
-    can_add_inventory = session.get('user_type') == 'hospital'
-    can_deduct_inventory = session.get('user_type') in ['hospital', 'doctor']
+    conn = get_db()
+    inventory = [] # Default to empty list
+    try:
+        # Ensure the connection provides dictionary-like rows if get_db doesn't handle it
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        inventory = cursor.execute("SELECT * FROM inventory ORDER BY item_name ASC").fetchall()
+    except sqlite3.Error as e:
+        print(f"Database error fetching inventory: {e}")
+        flash(f"Error fetching inventory: {e}", "danger")
+    finally:
+        close_db(conn) # Ensure db is closed even if error occurs
+
+    # Determine permissions based on user type stored in session
+    user_type = session.get('user_type')
+    can_add_inventory = user_type == 'hospital'
+    can_deduct_inventory = user_type in ['hospital', 'doctor']
 
     # Pass these flags to the template
     return render_template('view_inventory.html',
                            inventory=inventory,
                            can_add_inventory=can_add_inventory,
-                           can_deduct_inventory=can_deduct_inventory)
+                           can_deduct_inventory=can_deduct_inventory,
+                           # Pass theme info if applicable (as seen in original HTML)
+                           g={'theme': session.get('theme', 'light')}) # Example theme handling
 
 
-# Add a new route to handle deducting inventory items
-@app.route('/inventory/deduct', methods=['POST']) # This will likely be an API endpoint for AJAX
+# Route to handle deducting inventory items (AJAX)
+@app.route('/inventory/deduct', methods=['POST'])
 def deduct_inventory_item():
-    # Check if the logged-in user is a 'hospital' or 'doctor'
+    # Permission check
     if session.get('user_type') not in ['hospital', 'doctor']:
-        # Return JSON response for API endpoint
-        return jsonify({'success': False, 'message': 'You do not have permission to deduct inventory items.'}), 403 # Forbidden
+        return jsonify({'success': False, 'message': 'Permission denied.'}), 403
 
     item_id = request.form.get('item_id')
-    # Add validation for quantity to ensure it's a positive integer
     try:
         quantity_to_deduct = int(request.form.get('quantity'))
         if quantity_to_deduct <= 0:
-             raise ValueError("Quantity to deduct must be a positive integer.")
+            raise ValueError("Quantity must be positive.")
     except (ValueError, TypeError):
-        return jsonify({'success': False, 'message': 'Invalid quantity. Please enter a positive whole number.'}), 400 # Bad Request
+        return jsonify({'success': False, 'message': 'Invalid quantity.'}), 400
 
-    # Basic validation for item_id
     if not item_id:
-         return jsonify({'success': False, 'message': 'Item ID is required.'}), 400
+        return jsonify({'success': False, 'message': 'Item ID required.'}), 400
 
     conn = get_db()
+    conn.row_factory = sqlite3.Row # Ensure dict access
     cursor = conn.cursor()
     try:
-        # Fetch current quantity first
         cursor.execute("SELECT quantity FROM inventory WHERE item_id = ?", (item_id,))
         result = cursor.fetchone()
 
         if result is None:
-            return jsonify({'success': False, 'message': 'Item not found.'}), 404 # Not Found
+            return jsonify({'success': False, 'message': 'Item not found.'}), 404
 
         current_quantity = result['quantity']
         new_quantity = current_quantity - quantity_to_deduct
 
         if new_quantity < 0:
-            # Prevent deducting more than available
-            return jsonify({'success': False, 'message': f'Cannot deduct {quantity_to_deduct}. Only {current_quantity} available.'}), 400 # Bad Request
+            return jsonify({'success': False, 'message': f'Insufficient stock. Only {current_quantity} available.'}), 400
 
-        # Update the quantity
         cursor.execute("UPDATE inventory SET quantity = ? WHERE item_id = ?", (new_quantity, item_id))
         conn.commit()
+        # Record activity log if implemented
+        # record_activity(f"Deducted {quantity_to_deduct} from inventory item ID {item_id[:8]}...")
 
-        # Return success response with the new quantity
-        return jsonify({'success': True, 'message': 'Inventory quantity updated successfully', 'new_quantity': new_quantity})
+        return jsonify({'success': True, 'message': 'Quantity updated.', 'new_quantity': new_quantity})
 
     except sqlite3.Error as e:
-        conn.rollback() # Rollback changes if there's an error
+        conn.rollback()
         print(f"Database error deducting inventory: {e}")
-        return jsonify({'success': False, 'message': f'Database error: {e}'}), 500
-
+        return jsonify({'success': False, 'message': 'Database error.'}), 500
+    except Exception as e: # Catch other potential errors
+        conn.rollback()
+        print(f"Error deducting inventory: {e}")
+        return jsonify({'success': False, 'message': 'An unexpected error occurred.'}), 500
     finally:
         close_db(conn)
+
+
+# NEW Route to handle adding quantity to existing inventory items (AJAX)
+@app.route('/inventory/add_existing', methods=['POST'])
+def add_existing_inventory_item():
+    # Permission check: Only 'hospital' users
+    if session.get('user_type') != 'hospital':
+        return jsonify({'success': False, 'message': 'Permission denied.'}), 403
+
+    item_id = request.form.get('item_id')
+    try:
+        quantity_to_add = int(request.form.get('quantity'))
+        if quantity_to_add <= 0:
+            raise ValueError("Quantity must be positive.")
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Invalid quantity.'}), 400
+
+    if not item_id:
+        return jsonify({'success': False, 'message': 'Item ID required.'}), 400
+
+    conn = get_db()
+    conn.row_factory = sqlite3.Row # Ensure dict access
+    cursor = conn.cursor()
+    try:
+        # Check if item exists (good practice)
+        cursor.execute("SELECT quantity FROM inventory WHERE item_id = ?", (item_id,))
+        result = cursor.fetchone()
+        if result is None:
+            return jsonify({'success': False, 'message': 'Item not found.'}), 404
+
+        # Update quantity by adding
+        cursor.execute("UPDATE inventory SET quantity = quantity + ? WHERE item_id = ?",
+                       (quantity_to_add, item_id))
+
+        # Fetch the updated quantity
+        cursor.execute("SELECT quantity FROM inventory WHERE item_id = ?", (item_id,))
+        updated_result = cursor.fetchone()
+        new_quantity = updated_result['quantity'] if updated_result else None
+
+        conn.commit()
+
+        if new_quantity is not None:
+            # Record activity log if implemented
+            # record_activity(f"Added {quantity_to_add} to inventory item ID {item_id[:8]}...")
+            return jsonify({'success': True, 'message': 'Quantity updated.', 'new_quantity': new_quantity})
+        else:
+            # This case indicates something went wrong after the update but before commit/fetch
+            conn.rollback() # Rollback if we didn't get the new quantity
+            return jsonify({'success': False, 'message': 'Failed to confirm update.'}), 500
+
+    except sqlite3.Error as e:
+        conn.rollback()
+        print(f"Database error adding to inventory: {e}")
+        return jsonify({'success': False, 'message': 'Database error.'}), 500
+    except Exception as e: # Catch other potential errors
+        conn.rollback()
+        print(f"Error adding to inventory: {e}")
+        return jsonify({'success': False, 'message': 'An unexpected error occurred.'}), 500
+    finally:
+        close_db(conn)
+
+
+@app.route('/inventory/chart-data')
+def get_inventory_chart_data():
+    """Fetches inventory data (item names and quantities) for charting."""
+
+    conn = get_db()
+    try:
+        
+        inventory_data = conn.execute("""
+            SELECT item_name, quantity
+            FROM inventory
+            WHERE quantity > 0 -- Only show items with quantity > 0 on the chart
+            ORDER BY item_name ASC
+        """).fetchall()
+
+        # Format data for Chart.js
+        labels = [row['item_name'] for row in inventory_data]
+        data = [row['quantity'] for row in inventory_data]
+
+        return jsonify({'labels': labels, 'data': data})
+
+    except sqlite3.Error as e:
+        print(f"Database error fetching inventory chart data: {e}")
+        return jsonify({'error': 'Error fetching inventory data', 'details': str(e)}), 500
+    finally:
+        close_db(conn)
+
+LOW_STOCK_THRESHOLD = 10
+
+@app.route('/inventory/low-stock')
+def get_low_stock_items():
+    """
+    Fetches inventory items with quantity below the defined threshold.
+    Restricted to 'hospital' users.
+    """
+    # --- Authorization Check ---
+    # Check if the logged-in user is a 'hospital'
+    if session.get('user_type') != 'hospital':
+        # Return a 403 Forbidden response if not authorized
+        return jsonify({'error': 'Unauthorized', 'message': 'You do not have permission to view low stock items.'}), 403
+    # --- END Authorization Check ---
+
+    conn = get_db()
+    try:
+        # Select items where quantity is less than or equal to the threshold
+        # Order by quantity to show lowest stock first, then by item name
+        low_stock_items = conn.execute("""
+            SELECT item_id, item_name, quantity, unit
+            FROM inventory
+            WHERE quantity <= ?
+            ORDER BY quantity ASC, item_name ASC
+        """, (LOW_STOCK_THRESHOLD,)).fetchall()
+
+        # Return the list of items as JSON
+        # We convert Row objects to dictionaries for easier JSON serialization
+        items_list = [dict(row) for row in low_stock_items]
+
+        # Also return the count of low stock items
+        low_stock_count = len(items_list)
+
+        return jsonify({'low_stock_items': items_list, 'count': low_stock_count})
+
+    except sqlite3.Error as e:
+        print(f"Database error fetching low stock items: {e}")
+        # Return a 500 Internal Server Error response on database error
+        return jsonify({'error': 'Database Error', 'message': f'Error fetching low stock data: {e}'}), 500
+    finally:
+        close_db(conn)
+
+
 @app.route('/get_system_stats', methods=['GET'])
 def get_system_stats():
     conn = get_db()

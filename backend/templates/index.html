@@ -259,24 +259,63 @@
                 <div class="card shadow-sm h-100"> {# Card styling #}
                     <div class="card-body">
                         <h5 class="card-title text-center">Today's OPD Bookings by Department</h5>
-                        <div class="chart-container" style="position: relative; height: 300px; width: 100%;"> {# Adjust height as needed #}
+                        <div class="chart-container" style="position: relative; height: 300px; width: 100%;"> {# Adjust
+                            height as needed #}
                             <canvas id="dailyOpdChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-6"> {# Half width for each chart #}
-                 <div class="card shadow-sm h-100"> {# Card styling #}
+                <div class="card shadow-sm h-100"> {# Card styling #}
                     <div class="card-body">
                         <h5 class="card-title text-center">Last Month's OPD Bookings by Department</h5>
-                        <div class="chart-container" style="position: relative; height: 300px; width: 100%;"> {# Adjust height as needed #}
+                        <div class="chart-container" style="position: relative; height: 300px; width: 100%;"> {# Adjust
+                            height as needed #}
                             <canvas id="monthlyOpdChart"></canvas>
                         </div>
                     </div>
-                 </div>
+                </div>
             </div>
         </div>
     </section>
+
+
+    <section class="container my-5" data-aos="fade-up"> {# Added data-aos for animation #}
+        <h2 class="text-center mb-4">Inventory Stock Levels</h2> {# Added mb-4 for spacing #}
+        <div class="card shadow-sm"> {# Optional: Wrap chart in a card for consistency #}
+            <div class="card-body">
+                <h5 class="card-title text-center">Quantity by Item</h5> {# Card title #}
+                <div class="chart-container" style="position: relative; height: 400px; width: 100%;"> {# Adjust height
+                    as needed #}
+                    <canvas id="inventoryStockChart"></canvas> {# This is where the chart will be drawn #}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% if session.get('user_type') == 'hospital' %}
+    <section class="container my-5 mt-5" data-aos="fade-up">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>Low Stock Alerts
+                    {# Badge to show the count - will be updated by JavaScript #}
+                    <span class="badge bg-warning text-dark ms-2" id="lowStockCount">0</span>
+                </h5>
+                <p class="card-text text-muted">Items with quantity at or below {{ LOW_STOCK_THRESHOLD | default(10) }}
+                    are listed below.</p> {# Display threshold #}
+
+                {# List to display low stock items - populated by JavaScript #}
+                <ul class="list-group list-group-flush" id="lowStockItemsList">
+                    {# Initial loading message - will be replaced by JS #}
+                    <li class="list-group-item text-center text-muted">Loading low stock items...</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
 
     <!-- Footer -->
     <footer class="bg-white border-top py-4 text-center" data-aos="fade-up">
@@ -324,6 +363,7 @@
     <script>
         // Define global JavaScript variables using Flask's Jinja2 url_for function
         // These variables will be accessible in your script.js file
+        const currentUserType = "{{ session.get('user_type') }}";
         const systemStatsUrl = "{{ url_for('get_system_stats') }}";
         const recentActivitiesUrl = "{{ url_for('get_recent_activities') }}";
         const nowServingUrl = "{{ url_for('get_now_serving') }}";
@@ -332,12 +372,17 @@
         const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
         const dailyOpdStatsUrl = "{{ url_for('get_daily_opd_by_department') }}"; // New URL
         const monthlyOpdStatsUrl = "{{ url_for('get_monthly_opd_by_department') }}"; // New URL
+        const inventoryChartDataUrl = "{{ url_for('get_inventory_chart_data') }}";
+        const lowStockItemsUrl = "{{ url_for('get_low_stock_items') }}";
+
+        const LOW_STOCK_THRESHOLD_JS = "{{ LOW_STOCK_THRESHOLD | default(10) }}";
 
         // Declare admissionsChart here so it's in a scope accessible globally by script.js
         // It will be initialized within script.js
         var admissionsChart;
         var dailyOpdChart;
-        var monthlyOpdChart; 
+        var monthlyOpdChart;
+        var inventoryStockChart;
 
     </script>
     {# Link to your consolidated custom JavaScript file - Load AFTER libraries and URL variables #}

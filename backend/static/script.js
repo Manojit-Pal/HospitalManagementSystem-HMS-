@@ -381,6 +381,295 @@ function fetchMonthlyOpdStats() {
         });
 }
 
+
+function fetchInventoryChartData() {
+
+    const inventoryCanvas = document.getElementById('inventoryStockChart');
+    const chartContainer = inventoryCanvas ? inventoryCanvas.closest('.chart-container') : null;
+
+    if (typeof inventoryChartDataUrl === 'undefined') {
+        console.error("inventoryChartDataUrl is not defined!");
+        displayChartErrorMessage(chartContainer, 'Chart data URL is missing. Check configuration.');
+        return; // Stop execution if URL is not defined
+    }
+
+    fetch(inventoryChartDataUrl)
+        .then(response => {
+            if (!response.ok) {
+                // Handle HTTP errors (e.g., 404 Not Found, 500 Internal Server Error)
+                console.error(`HTTP error fetching inventory chart data: ${response.status}`);
+                displayChartErrorMessage(chartContainer, 'Error loading chart data.');
+                throw new Error(`HTTP error! status: ${response.status}`); // Propagate error
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Check for backend-specific errors returned in the JSON payload
+            if (data.error) {
+                console.error('Backend error fetching inventory data:', data.details || data.error);
+                displayChartErrorMessage(chartContainer, `Backend error: ${data.message || data.error}`);
+                // Optionally update the chart to show an error state if it exists
+                if (window.inventoryStockChart) {
+                    window.inventoryStockChart.data.labels = ['Error'];
+                    window.inventoryStockChart.data.datasets[0].data = [0]; // Reset data
+                    updateChartTitle(window.inventoryStockChart, 'Error loading data');
+                    window.inventoryStockChart.update();
+                }
+                return; // Stop processing on error
+            }
+
+            // Check if data is empty
+            if (!data || !data.labels || data.labels.length === 0 || !data.data || data.data.length === 0) {
+                console.log("No inventory data available for charting.");
+                displayNoDataMessage(chartContainer, 'No inventory items available for charting.'); // Display specific message
+                // Destroy existing chart if it was previously rendered
+                if (window.inventoryStockChart) {
+                    window.inventoryStockChart.destroy();
+                    window.inventoryStockChart = null; // Clear the reference
+                }
+                return; // Stop processing if no data
+            }
+
+
+            // Check if chart object exists and data has expected properties
+            if (inventoryCanvas && chartContainer) {
+                // Clear any previous messages and ensure canvas is in container
+                chartContainer.innerHTML = '';
+                chartContainer.appendChild(inventoryCanvas);
+
+                if (!window.inventoryStockChart) {
+                    // Initialize chart if it doesn't exist
+                    const ctx = inventoryCanvas.getContext('2d');
+                    window.inventoryStockChart = new Chart(ctx, {
+                        type: 'bar', // Bar chart type
+                        data: {
+                            labels: [], // Will be populated by fetch function
+                            datasets: [{
+                                label: 'Quantity in Stock',
+                                data: [], // Will be populated by fetch function
+                                backgroundColor: [
+                                    'rgba(75, 192, 192, 0.6)', // Example colors
+                                    'rgba(153, 102, 255, 0.6)',
+                                    'rgba(255, 159, 64, 0.6)',
+                                    'rgba(255, 99, 132, 0.6)',
+                                    'rgba(54, 162, 235, 0.6)',
+                                    'rgba(201, 203, 207, 0.6)'
+                                    // Add more colors or use generateColors function
+                                ],
+                                borderColor: [
+                                    'rgba(75, 192, 192, 1)',
+                                    'rgba(153, 102, 255, 1)',
+                                    'rgba(255, 159, 64, 1)',
+                                    'rgba(255, 99, 132, 1)',
+                                    'rgba(54, 162, 235, 1)',
+                                    'rgba(201, 203, 207, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false, // Allow height adjustment via CSS
+                            plugins: {
+                                legend: {
+                                    display: false // Hide legend if it's just one dataset
+                                },
+                                title: {
+                                    display: true, // Ensure title is displayed
+                                    text: 'Inventory Stock Levels', // Initial Title
+                                    color: document.body.classList.contains('dark-mode') ? '#f1f1f1' : '#495057' // Initial title color
+                                },
+                                tooltip: { // Add tooltips for better info on hover
+                                    callbacks: {
+                                        label: function (context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            // Assuming units are not returned in this data, just show quantity
+                                            label += context.raw; // + (data.units && data.units[context.dataIndex] ? ' ' + data.units[context.dataIndex] : '');
+                                            return label;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true, // Start y-axis at 0
+                                    title: {
+                                        display: true,
+                                        text: 'Quantity',
+                                        color: document.body.classList.contains('dark-mode') ? '#f1f1f1' : '#495057' // Axis title color
+                                    },
+                                    ticks: {
+                                        stepSize: 1, // Ensure whole numbers if quantities are integers
+                                        color: document.body.classList.contains('dark-mode') ? '#f1f1f1' : '#495057' // Axis tick color
+                                    },
+                                    grid: {
+                                        color: document.body.classList.contains('dark-mode') ? 'rgba(241, 241, 241, 0.1)' : 'rgba(0, 0, 0, 0.1)' // Grid line color
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Item Name',
+                                        color: document.body.classList.contains('dark-mode') ? '#f1f1f1' : '#495057' // Axis title color
+                                    },
+                                    ticks: {
+                                        color: document.body.classList.contains('dark-mode') ? '#f1f1f1' : '#495057' // Axis tick color
+                                    },
+                                    grid: {
+                                        color: document.body.classList.contains('dark-mode') ? 'rgba(241, 241, 241, 0.1)' : 'rgba(0, 0, 0, 0.1)' // Grid line color
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Update the chart's data and labels
+                window.inventoryStockChart.data.labels = data.labels; // Item names
+                window.inventoryStockChart.data.datasets[0].data = data.data; // Quantities
+
+                // Generate dynamic colors based on the number of items
+                window.inventoryStockChart.data.datasets[0].backgroundColor = generateColors(data.labels.length);
+
+
+                updateChartTitle(window.inventoryStockChart, 'Inventory Stock Levels'); // Update title on success
+                window.inventoryStockChart.update();
+
+
+            } else {
+                console.error("Inventory chart canvas element or container not found during data processing.");
+                displayChartErrorMessage(null, 'Chart area not found');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching inventory data:', error);
+            displayChartErrorMessage(chartContainer, 'Could not load inventory chart.');
+            // Optionally update the chart to show an error state if it exists
+            if (window.inventoryStockChart) {
+                window.inventoryStockChart.data.labels = ['Error'];
+                window.inventoryStockChart.data.datasets[0].data = [0];
+                updateChartTitle(window.inventoryStockChart, 'Error loading data');
+                window.inventoryStockChart.update();
+            }
+        });
+}
+
+/**
+ * Fetches low stock inventory items from the backend and updates the UI.
+ */
+function fetchLowStockItems() {
+    const lowStockListElement = document.getElementById('lowStockItemsList');
+    const lowStockCountElement = document.getElementById('lowStockCount');
+
+    // Check if elements exist. If the HTML section is wrapped in Jinja2 {% if %},
+    // these elements might not exist for non-hospital users, which is expected.
+    if (!lowStockListElement || !lowStockCountElement) {
+        // console.warn("Low stock alert elements not found on this page. This is expected for non-hospital users if using Jinja2 wrapper.");
+        return; // Exit if elements are missing (likely due to Jinja2 check)
+    }
+
+    // --- NEW: Frontend Authorization Check ---
+    // Check if the current user type is 'hospital'.
+    // currentUserType should be set in a script tag in your HTML using Jinja2.
+    if (typeof currentUserType === 'undefined' || currentUserType !== 'hospital') {
+        console.log("User is not authorized to view low stock items (Frontend check).");
+        // Display a message indicating lack of permission
+        lowStockListElement.innerHTML = '<li class="list-group-item text-center text-info">You do not have permission to view low stock alerts.</li>';
+        lowStockCountElement.textContent = 'N/A'; // Or hide the badge entirely
+        // Optionally hide the entire section if it was rendered despite the check (less common with Jinja2)
+        // const lowStockSection = lowStockListElement.closest('.low-stock-alert-section');
+        // if (lowStockSection) {
+        //     lowStockSection.style.display = 'none';
+        // }
+        return; // Exit the function if not authorized
+    }
+    // --- END NEW ---
+
+    // Check if URL is defined (still necessary for authorized users)
+    if (typeof lowStockItemsUrl === 'undefined') {
+        console.error("lowStockItemsUrl is not defined!");
+         lowStockListElement.innerHTML = '<li class="list-group-item text-center text-danger">Configuration Error: Low stock URL missing.</li>';
+         lowStockCountElement.textContent = 'Error';
+        return; // Exit if URL is missing
+    }
+
+
+    // Set loading state
+    lowStockListElement.innerHTML = '<li class="list-group-item text-center text-muted">Loading low stock items...</li>';
+    lowStockCountElement.textContent = '...';
+
+
+    fetch(lowStockItemsUrl)
+        .then(response => {
+            // --- Handle 403 Forbidden response from backend ---
+            // This is the backend authorization check response
+            if (response.status === 403) {
+                 console.warn("Backend returned 403 Forbidden for low stock data.");
+                 // Read the backend's message and display it
+                 return response.json().then(data => {
+                     lowStockListElement.innerHTML = `<li class="list-group-item text-center text-info">${data.message || 'You do not have permission to view low stock items.'}</li>`;
+                     lowStockCountElement.textContent = 'N/A';
+                     // Throw an error to stop further processing in this chain
+                     throw new Error('Unauthorized access to low stock data.');
+                 });
+            }
+            // --- END NEW ---
+
+            if (!response.ok) {
+                console.error(`HTTP error fetching low stock data: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // This block only runs if the fetch was successful (status 200-299)
+            if (data.error) {
+                console.error('Backend error fetching low stock items:', data.details || data.error);
+                lowStockListElement.innerHTML = `<li class="list-group-item text-center text-danger">Error: ${data.message || data.error}</li>`;
+                lowStockCountElement.textContent = 'Error';
+                return;
+            }
+
+            // Update the count badge
+            lowStockCountElement.textContent = data.count;
+
+            // Populate the list
+            lowStockListElement.innerHTML = ''; // Clear loading message
+
+            if (data.low_stock_items && data.low_stock_items.length > 0) {
+                data.low_stock_items.forEach(item => {
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center'); // Bootstrap list item styling
+                    listItem.innerHTML = `
+                        <span>
+                            <strong>${item.item_name}</strong> (ID: ${item.item_id ? item.item_id.substring(0, 6) + '...' : 'N/A'})
+                        </span>
+                        <span class="badge bg-danger rounded-pill">
+                            ${item.quantity} ${item.unit || ''}
+                        </span>
+                    `;
+                    lowStockListElement.appendChild(listItem);
+                });
+            } else {
+                // Display message if no items are low stock
+                lowStockListElement.innerHTML = '<li class="list-group-item text-center text-muted">No items are currently low in stock.</li>';
+            }
+        })
+        .catch(error => {
+            // This catch block handles network errors and errors thrown in the .then() blocks (like the 403 error)
+            console.error('Error fetching low stock items:', error);
+             // Only display a generic error if it wasn't the 403 handled specifically above
+             if (!error.message || !error.message.includes('Unauthorized access')) {
+                 lowStockListElement.innerHTML = `<li class="list-group-item text-center text-danger">Could not load low stock items.</li>`;
+                 lowStockCountElement.textContent = 'Error';
+             }
+        });
+}
+
+
 // Helper function to generate a set of distinct colors (Keep this)
 function generateColors(numColors) {
     const colors = [];
@@ -583,7 +872,13 @@ window.addEventListener("load", function () {
     fetchAdmissionsDataForChart(); // Call the function after chart is initialized
     fetchDailyOpdStats(); // New call
     fetchMonthlyOpdStats(); // New call
+    fetchInventoryChartData();
+    fetchLowStockItems();
 
+    const lowStockThresholdElement = document.querySelector('.low-stock-alert-section .card-text');
+    if (lowStockThresholdElement && typeof LOW_STOCK_THRESHOLD_JS !== 'undefined') {
+        lowStockThresholdElement.textContent = `Items with quantity at or below ${LOW_STOCK_THRESHOLD_JS} are listed below.`;
+    }
 
 });
 
@@ -638,33 +933,35 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Update icon immediately on load
                 const moonIcon = toggle.querySelector('.moon-icon');
                 const sunIcon = toggle.querySelector('.sun-icon');
-                 if (moonIcon) moonIcon.style.display = 'none';
-                 if (sunIcon) sunIcon.style.display = 'inline-block';
+                if (moonIcon) moonIcon.style.display = 'none';
+                if (sunIcon) sunIcon.style.display = 'inline-block';
             } else {
                 // Ensure light theme is explicitly set if saved as 'light'
-                 body.classList.remove('dark-mode');
-                 body.setAttribute('data-bs-theme', 'light');
-                 // Update icon immediately on load
-                 const moonIcon = toggle.querySelector('.moon-icon');
-                 const sunIcon = toggle.querySelector('.sun-icon');
-                  if (moonIcon) moonIcon.style.display = 'inline-block';
-                  if (sunIcon) sunIcon.style.display = 'none';
+                body.classList.remove('dark-mode');
+                body.setAttribute('data-bs-theme', 'light');
+                // Update icon immediately on load
+                const moonIcon = toggle.querySelector('.moon-icon');
+                const sunIcon = toggle.querySelector('.sun-icon');
+                if (moonIcon) moonIcon.style.display = 'inline-block';
+                if (sunIcon) sunIcon.style.display = 'none';
             }
-             // Also update chart colors immediately on load based on saved theme
-             // This assumes updateChartColors exists and handles null charts gracefully
-             if (typeof updateChartColors === 'function') {
-                 updateChartColors(savedTheme === 'dark');
-             } else {
-                 console.warn("updateChartColors function not found.");
-             }
+            // Also update chart colors immediately on load based on saved theme
+            // This assumes updateChartColors exists and handles null charts gracefully
+            if (typeof updateChartColors === 'function') {
+                updateChartColors(savedTheme === 'dark');
+            } else {
+                console.warn("updateChartColors function not found.");
+            }
+
 
         } else {
             // If no saved theme, default to light and ensure attribute is set
             body.setAttribute('data-bs-theme', 'light');
-             // Ensure custom class is removed if no theme saved (defaults to light)
-             body.classList.remove('dark-mode');
+            // Ensure custom class is removed if no theme saved (defaults to light)
+            body.classList.remove('dark-mode');
         }
 
+        
 
         // Add event listener for the toggle button click
         toggle.addEventListener('click', () => {
@@ -685,11 +982,11 @@ document.addEventListener('DOMContentLoaded', function () {
             localStorage.setItem('theme', theme);
 
             // Update chart colors (if charts are on this page and initialized)
-             if (typeof updateChartColors === 'function') {
-                 updateChartColors(isDarkMode);
-             } else {
-                 console.warn("updateChartColors function not found.");
-             }
+            if (typeof updateChartColors === 'function') {
+                updateChartColors(isDarkMode);
+            } else {
+                console.warn("updateChartColors function not found.");
+            }
 
 
             // Update icon based on theme
@@ -862,4 +1159,6 @@ setInterval(fetchSystemStats, 60000); // Refresh stats every 60 seconds
 setInterval(fetchRecentActivities, 30000); // Refresh recent activities every 30 seconds
 setInterval(fetchNowServing, 5000); // Refresh now serving every 5 seconds
 setInterval(fetchDailyOpdStats, 60000); // Refresh daily OPD stats every 60 seconds
-setInterval(fetchMonthlyOpdStats, 300000); // Refresh monthly OPD stats every 5 minutes (less frequent)
+setInterval(fetchMonthlyOpdStats, 300000);// Refresh monthly OPD stats every 5minutes (less frequent)
+setInterval(fetchInventoryChartData, 60000); 
+setInterval(fetchLowStockItems, 60000);
