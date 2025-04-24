@@ -68,9 +68,11 @@ def require_login():
         'list_beds', 'add_bed', 'list_admissions', 'admit_patient',
         'view_inventory', 'add_inventory_item',
         'get_system_stats', 'get_recent_activities', # Keep these
-        'update_opd_status', # Keep this
-        'get_now_serving', # <--- Add this dashboard data endpoint
-        'get_admissions_data' # <--- Add this dashboard data endpoint
+        'update_opd_status',
+        'get_now_serving','chatbot_send_message',
+        'get_admissions_data','get_daily_opd_by_department',
+        'get_monthly_opd_by_department',
+        'deduct_inventory_item','discharge_patient'
     ]
     # Allow access to index, login, register, and static files
     # Keep 'index' in allowed_routes if your homepage (/) is NOT the protected dashboard
@@ -431,25 +433,98 @@ def list_patients():
     close_db(conn)
     return render_template('list_patients.html', patients=patients)
 
+# ... (your existing imports like uuid, sqlite3, get_db, close_db, render_template, request, redirect, url_for, flash, session, datetime, pytz) ...
+
+# Make sure you have imported datetime and pytz
+# from datetime import datetime
+# import pytz
+
 @app.route('/opd/join', methods=['GET', 'POST'])
 def join_opd_queue():
+    # This route might need permission checks depending on who can add patients to the queue
+    # For now, assuming any logged-in user can join the queue.
+    # If restricted, add session.get('user_type') checks here.
+
     conn = get_db()
     cursor = conn.cursor() # Get a cursor for executing queries
 
-    # Fetch patients for the GET request or in case of a POST error
-    patients = cursor.execute("SELECT patient_id, name FROM patients").fetchall()
-    # Beds list is not needed here, but keeping the connection open for now
+    # Fetch list of registered patients for the dropdown (for both GET and POST in case of a POST error)
+    try:
+        cursor.execute("SELECT patient_id, name FROM patients ORDER BY name ASC")
+        patients = cursor.fetchall() # Fetch as dicts if using row_factory
+
+        # --- NEW: Fetch existing department names for the dropdown ---
+        existing_departments_raw = cursor.execute("SELECT DISTINCT department FROM opd_queue WHERE department IS NOT NULL AND department != '' ORDER BY department ASC").fetchall()
+        existing_departments = [row['department'] for row in existing_departments_raw]
+        # --- END NEW ---
+
+    except sqlite3.Error as e:
+        print(f"Database error fetching data for join OPD queue form: {e}")
+        flash(f"Error loading form options: {e}", "danger")
+        patients = [] # Return empty lists on error
+        existing_departments = [] # Return empty list on error
+    finally:
+        # Close the connection after fetching for GET or before processing POST
+        # Re-open connection if needed for POST processing
+        close_db(conn)
+
 
     if request.method == 'POST':
-        patient_id = request.form['patient_id']
-        department = request.form['department']
+        # Get data from the form
+        patient_id = request.form.get('patient_id') # Use .get() for safer access
 
-        # --- Start Constraint Check: Prevent Duplicate Entry Same Day/Department ---
+        # --- NEW: Get department from either dropdown or 'other' input ---
+        department_select = request.form.get('department_select')
+        department_other = request.form.get('department_other')
+
+        # Determine the final department value
+        department = department_other if department_select == 'other' else department_select
+        # --- END NEW ---
+
+        # --- Validation ---
         error = None
 
+        if not patient_id:
+            error = "Please select a patient."
+        elif not department: # Check the determined department value
+             error = "Please select or enter a department."
+
+
+        if error:
+            flash(error, 'danger')
+            # Re-open connection to fetch patients and departments again for re-rendering
+            conn = get_db()
+            cursor = conn.cursor()
+            try:
+                 cursor.execute("SELECT patient_id, name FROM patients ORDER BY name ASC")
+                 patients = cursor.fetchall()
+                 cursor.execute("SELECT DISTINCT department FROM opd_queue WHERE department IS NOT NULL AND department != '' ORDER BY department ASC").fetchall()
+                 existing_departments_raw = cursor.execute("SELECT DISTINCT department FROM opd_queue WHERE department IS NOT NULL AND department != '' ORDER BY department ASC").fetchall()
+                 existing_departments = [row['department'] for row in existing_departments_raw]
+            except sqlite3.Error as e:
+                 print(f"Database error fetching data for re-rendering join OPD queue form: {e}")
+                 # Use empty lists if fetching fails during error handling
+                 patients = []
+                 existing_departments = []
+            finally:
+                 close_db(conn)
+
+            # Pass back existing data and the selected/entered values for pre-filling
+            return render_template('join_opd_queue.html',
+                                   patients=patients,
+                                   existing_departments=existing_departments,
+                                   selected_patient_id=patient_id, # Pass back selected patient
+                                   selected_department_select=department_select, # Pass back selected department option
+                                   selected_department_other=department_other) # Pass back other department input
+
+
+        # --- Start Constraint Check: Prevent Duplicate Entry Same Day/Department ---
+        # Re-open connection for duplicate check and insertion
+        conn = get_db()
+        cursor = conn.cursor()
         try:
             # 1. Get today's date range in the target timezone (Asia/Kolkata)
-            #    and convert to UTC for the database query, similar to get_system_stats
+            #    and convert to UTC for the database query, similar to get_system_stats
             utc = pytz.timezone('UTC')
             kolkata_tz = pytz.timezone('Asia/Kolkata') # Define India/Kolkata timezone (IST)
 
@@ -464,8 +539,9 @@ def join_opd_queue():
             today_end_str = today_end_utc.strftime('%Y-%m-%d %H:%M:%S') # Adjust format if your DB stores higher precision
 
             # 2. Check if the patient already has an entry in the queue for this department today
-            #    We check if the status is NOT 'Completed' or 'Skipped', meaning they are
-            #    currently waiting, being served, or somehow still active in the queue.
+            #    We check if the status is NOT 'Completed' or 'Skipped', meaning they are
+            #    currently waiting, being served, or somehow still active in the queue.
+            # --- Use the determined 'department' variable in the query ---
             existing_entry_count = cursor.execute(
                 """
                 SELECT COUNT(*) FROM opd_queue
@@ -483,16 +559,35 @@ def join_opd_queue():
             error = f'Database error during duplicate check: {e}'
             print(f"Database error during OPD queue duplicate check: {e}")
         except Exception as e:
-             error = f'An unexpected error occurred during duplicate check: {e}'
-             print(f"Unexpected error during OPD queue duplicate check: {e}")
+            error = f'An unexpected error occurred during duplicate check: {e}'
+            print(f"Unexpected error during OPD queue duplicate check: {e}")
 
         # --- End Constraint Check ---
 
         if error:
             flash(error, 'danger')
-            # Close DB and return to the form, passing the patients list
-            close_db(conn)
-            return render_template('join_opd_queue.html', patients=patients)
+            # Re-open connection to fetch patients and departments again for re-rendering
+            conn = get_db()
+            cursor = conn.cursor()
+            try:
+                 cursor.execute("SELECT patient_id, name FROM patients ORDER BY name ASC")
+                 patients = cursor.fetchall()
+                 existing_departments_raw = cursor.execute("SELECT DISTINCT department FROM opd_queue WHERE department IS NOT NULL AND department != '' ORDER BY department ASC").fetchall()
+                 existing_departments = [row['department'] for row in existing_departments_raw]
+            except sqlite3.Error as e:
+                 print(f"Database error fetching data for re-rendering join OPD queue form: {e}")
+                 patients = []
+                 existing_departments = []
+            finally:
+                 close_db(conn)
+
+            # Pass back existing data and the selected/entered values for pre-filling
+            return render_template('join_opd_queue.html',
+                                   patients=patients,
+                                   existing_departments=existing_departments,
+                                   selected_patient_id=patient_id,
+                                   selected_department_select=department_select,
+                                   selected_department_other=department_other)
 
 
         # If no error, proceed with adding the patient to the queue
@@ -500,56 +595,85 @@ def join_opd_queue():
             queue_id = str(uuid.uuid4())
 
             # Get the next token number for the department
+            # --- Use the determined 'department' variable in the query ---
             cursor.execute("SELECT MAX(token_number) FROM opd_queue WHERE department = ?", (department,))
             result = cursor.fetchone()[0]
             next_token = (result + 1) if result is not None else 1
 
             # Insert the new queue entry
+            # --- Use the determined 'department' variable in the insert ---
             cursor.execute(
-                "INSERT INTO opd_queue (queue_id, patient_id, department, token_number) VALUES (?, ?, ?, ?)",
-                (queue_id, patient_id, department, next_token)
+                "INSERT INTO opd_queue (queue_id, patient_id, department, token_number, status, check_in_time) VALUES (?, ?, ?, ?, ?, ?)",
+                (queue_id, patient_id, department, next_token, 'Waiting', datetime.now(pytz.timezone('UTC')).strftime('%Y-%m-%d %H:%M:%S')) # Store check-in time in UTC
             )
             conn.commit()
-            flash('Successfully joined the OPD queue.', 'success')
+            flash(f"Successfully joined the {department} OPD queue with Token Number {next_token}.", "success") # Include token number in flash message
 
         except sqlite3.Error as e:
             flash(f"Error joining queue: {e}", "danger")
             conn.rollback() # Rollback the insert if it failed
+        except Exception as e:
+             flash(f"An unexpected error occurred while joining queue: {e}", "danger")
+             print(f"Unexpected error during OPD queue insertion: {e}")
         finally:
             close_db(conn)
 
-        # Redirect to the queue view regardless of whether insertion succeeded after the check
+        # Redirect to the queue view
         return redirect(url_for('view_opd_queue'))
 
-    # For GET request or if POST handling returns before redirect
-    close_db(conn) # Close DB after fetching patients for GET
-    return render_template('join_opd_queue.html', patients=patients)
+    
+    return render_template('join_opd_queue.html',
+                           patients=patients,
+                           existing_departments=existing_departments)
+
 
 # Modify this route in your app.py
 
-@app.route('/opd/queue')
+@app.route('/opd')
 def view_opd_queue():
+
     conn = get_db()
-    queue_entries = conn.execute("""
-        SELECT q.queue_id, q.token_number, p.name, q.department, q.status, q.check_in_time
-        FROM opd_queue q
-        JOIN patients p ON q.patient_id = p.patient_id
-        ORDER BY q.token_number
-    """).fetchall()
-    close_db(conn)
+    cursor = conn.cursor()
 
-    # Check if the logged-in user is a doctor or hospital
-    can_manage_opd = session.get('user_type') in ['doctor', 'hospital']
+    try:
+        cursor.execute("""
+            SELECT
+                oq.queue_id,
+                oq.token_number,
+                p.name,
+                oq.department,
+                oq.status,
+                oq.check_in_time
+            FROM opd_queue oq
+            JOIN patients p ON oq.patient_id = p.patient_id
+            ORDER BY oq.department ASC, oq.check_in_time ASC
+        """)
+        queue_items = cursor.fetchall()
 
-    # Pass the flag to the template
-    return render_template('view_opd_queue.html', queue=queue_entries, can_manage_opd=can_manage_opd)
+    except sqlite3.Error as e:
+        print(f"Database error fetching OPD queue: {e}")
+        flash(f"Error loading OPD queue: {e}", "danger")
+        queue_items = []
+    finally:
+        close_db(conn)
+
+    grouped_queue = {}
+    for item in queue_items:
+        department = item['department']
+        if department not in grouped_queue:
+            grouped_queue[department] = []
+        grouped_queue[department].append(item)
+
+    can_manage_opd = session.get('user_type') in ['hospital', 'doctor']
+
+    return render_template('view_opd_queue.html',
+                           grouped_queue=grouped_queue,
+                           can_manage_opd=can_manage_opd)
 
 # Add a new route to handle status updates
 @app.route('/opd/update_status', methods=['POST'])
 def update_opd_status():
-    # This route requires a logged-in doctor or hospital user (handled by @app.before_request)
-    # The @app.before_request function should be updated to protect this route
-
+    
     queue_id = request.form.get('queue_id')
     new_status = request.form.get('status')
 
@@ -578,31 +702,200 @@ def update_opd_status():
 
 @app.route('/beds/add', methods=['GET', 'POST'])
 def add_bed():
-    if request.method == 'POST':
-        ward = request.form['ward']
-        bed_number = request.form['bed_number']
-        bed_type = request.form.get('bed_type')
-        bed_id = str(uuid.uuid4())
+    # --- NEW: Restrict access to 'hospital' users ---
+    if session.get('user_type') != 'hospital':
+        flash('You do not have permission to add beds.', 'danger')
+        return redirect(url_for('index')) # Redirect to index or another appropriate page
+    # --- END NEW ---
 
+    conn = None # Initialize conn to None
+    cursor = None # Initialize cursor to None
+
+    # --- NEW: Fetch existing department names for the Ward dropdown ---
+    try:
         conn = get_db()
         cursor = conn.cursor()
+        existing_departments_raw = cursor.execute("SELECT DISTINCT department FROM opd_queue WHERE department IS NOT NULL AND department != '' ORDER BY department ASC").fetchall()
+        existing_departments = [row['department'] for row in existing_departments_raw]
+    except sqlite3.Error as e:
+        print(f"Database error fetching departments for add bed form: {e}")
+        flash(f"Error loading department options: {e}", "danger")
+        existing_departments = [] # Return empty list on error
+    finally:
+        # Close the connection after fetching for GET or before processing POST
+        if conn:
+             close_db(conn)
+
+
+    if request.method == 'POST':
+        # Get data from the form
+        # --- NEW: Get ward from either dropdown or 'other' input ---
+        ward_select = request.form.get('ward_select')
+        ward_other = request.form.get('ward_other')
+
+        # Determine the final ward value
+        ward = ward_other if ward_select == 'other' else ward_select
+        # --- END NEW ---
+
+        bed_number = request.form.get('bed_number') # Use .get() for safer access
+        bed_type = request.form.get('bed_type') # Use .get() for safer access
+
+        # --- NEW: Basic Validation ---
+        error = None
+        if not ward:
+            error = "Ward name is required."
+        elif not bed_number:
+            error = "Bed Number/ID is required."
+
+        if error:
+            flash(error, 'danger')
+            # Re-open connection to fetch departments again for re-rendering
+            conn = get_db()
+            cursor = conn.cursor()
+            try:
+                existing_departments_raw = cursor.execute("SELECT DISTINCT department FROM opd_queue WHERE department IS NOT NULL AND department != '' ORDER BY department ASC").fetchall()
+                existing_departments = [row['department'] for row in existing_departments_raw]
+            except sqlite3.Error as e:
+                print(f"Database error fetching departments for re-rendering add bed form: {e}")
+                existing_departments = []
+            finally:
+                close_db(conn)
+
+            # Pass back existing data and the selected/entered values for pre-filling
+            return render_template('add_bed.html',
+                                   existing_departments=existing_departments,
+                                   selected_ward_select=ward_select, # Pass back selected ward option
+                                   selected_ward_other=ward_other, # Pass back other ward input
+                                   selected_bed_number=bed_number, # Pass back entered bed number
+                                   selected_bed_type=bed_type) # Pass back selected bed type
+
+
+        # --- NEW: Constraint Check: Prevent Duplicate Bed (Same Ward and Bed Number) ---
+        conn = get_db() # Re-open connection for constraint check and insertion
+        cursor = conn.cursor()
         try:
-            cursor.execute("INSERT INTO beds (bed_id, ward, bed_number, bed_type) VALUES (?, ?, ?, ?)",
-                           (bed_id, ward, bed_number, bed_type))
+            existing_bed = cursor.execute(
+                "SELECT bed_id FROM beds WHERE ward = ? AND bed_number = ?",
+                (ward, bed_number)
+            ).fetchone()
+
+            if existing_bed:
+                error = f'A bed with Ward "{ward}" and Bed Number "{bed_number}" already exists.'
+
+        except sqlite3.Error as e:
+            error = f'Database error during duplicate bed check: {e}'
+            print(f"Database error during duplicate bed check: {e}")
+        except Exception as e:
+             error = f'An unexpected error occurred during duplicate bed check: {e}'
+             print(f"Unexpected error during duplicate bed check: {e}")
+
+        if error:
+            flash(error, 'danger')
+             # Re-open connection to fetch departments again for re-rendering
+            conn = get_db()
+            cursor = conn.cursor()
+            try:
+                existing_departments_raw = cursor.execute("SELECT DISTINCT department FROM opd_queue WHERE department IS NOT NULL AND department != '' ORDER BY department ASC").fetchall()
+                existing_departments = [row['department'] for row in existing_departments_raw]
+            except sqlite3.Error as e:
+                print(f"Database error fetching departments for re-rendering add bed form: {e}")
+                existing_departments = []
+            finally:
+                close_db(conn)
+
+            # Pass back existing data and the selected/entered values for re-filling
+            return render_template('add_bed.html',
+                                   existing_departments=existing_departments,
+                                   selected_ward_select=ward_select,
+                                   selected_ward_other=ward_other,
+                                   selected_bed_number=bed_number,
+                                   selected_bed_type=bed_type)
+        # --- END NEW ---
+
+
+        # If no validation or constraint errors, proceed with adding the bed
+        try:
+            bed_id = str(uuid.uuid4()) # Generate unique ID
+
+            cursor.execute("INSERT INTO beds (bed_id, ward, bed_number, bed_type, status) VALUES (?, ?, ?, ?, ?)",
+                           (bed_id, ward, bed_number, bed_type, 'Available')) # --- NEW: Set initial status to 'Available' ---
             conn.commit()
+            flash(f"New bed (Ward: {ward}, Bed No: {bed_number}) added successfully.", "success") # Include details in flash message
+
         except sqlite3.Error as e:
             flash(f"Error adding bed: {e}", "danger")
+            conn.rollback() # Rollback the insert if it failed
+        except Exception as e:
+             flash(f"An unexpected error occurred while adding bed: {e}", "danger")
+             print(f"Unexpected error during bed insertion: {e}")
         finally:
             close_db(conn)
+
         return redirect(url_for('list_beds'))
-    return render_template('add_bed.html')
+
+    # For GET request, render the form, passing the fetched departments
+    return render_template('add_bed.html', existing_departments=existing_departments)
 
 @app.route('/beds')
 def list_beds():
-    conn = get_db()
-    beds = conn.execute("SELECT * FROM beds").fetchall()
-    close_db(conn)
-    return render_template('list_beds.html', beds=beds)
+    
+    conn = None # Initialize conn to None
+    cursor = None # Initialize cursor to None
+    beds_list = [] # Initialize list to store fetched beds
+
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                bed_id,
+                ward,
+                bed_number,
+                bed_type,
+                status
+            FROM beds
+            ORDER BY
+                CASE status -- Custom order: 'Available' first, then 'Occupied'
+                    WHEN 'Available' THEN 1
+                    WHEN 'Occupied' THEN 2
+                    ELSE 3 -- For any other unexpected statuses
+                END ASC,
+                ward ASC, -- Then order by ward alphabetically
+                bed_number ASC; -- Then order by bed number (might need natural sort if bed_number is text like '1A', '10')
+        """
+        cursor.execute(query)
+        beds_list = cursor.fetchall() # Fetch all results
+
+    except sqlite3.Error as e:
+        print(f"Database error fetching bed list: {e}")
+        flash(f"Error loading bed availability: {e}", "danger")
+        beds_list = [] # Return empty list on error
+    except Exception as e:
+        print(f"General error fetching bed list: {e}")
+        flash(f"An unexpected error occurred while loading beds: {e}", "danger")
+        beds_list = [] # Return empty list on error
+    finally:
+        if conn:
+            close_db(conn) # Ensure connection is closed
+
+    grouped_beds = {'Available': {}, 'Occupied': {}}
+
+    for bed in beds_list:
+        status = bed['status']
+        ward = bed['ward']
+
+        # Ensure the status is one we expect and want to group
+        if status in grouped_beds:
+            # If ward is not yet a key in the status group, add it
+            if ward not in grouped_beds[status]:
+                grouped_beds[status][ward] = []
+
+            grouped_beds[status][ward].append(bed)
+        
+
+    return render_template('list_beds.html',
+                           grouped_beds=grouped_beds)
 
 @app.route('/admissions/add', methods=['GET', 'POST'])
 def admit_patient():
@@ -643,34 +936,253 @@ def list_admissions():
     close_db(conn)
     return render_template('list_admissions.html', admissions=admissions)
 
+@app.route('/discharge_patient', methods=['POST'])
+def discharge_patient():
+    """Discharges a patient from an admission and makes the bed available."""
+    # Check if the logged-in user is authorized (hospital or doctor)
+    if session.get('user_type') not in ['hospital', 'doctor']:
+        return jsonify({'success': False, 'message': 'Unauthorized access'}), 403 # 403 Forbidden
+
+    admission_id = request.form.get('admission_id')
+
+    if not admission_id:
+        return jsonify({'success': False, 'message': 'Admission ID is required'}), 400 # 400 Bad Request
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        conn.execute('BEGIN TRANSACTION')
+
+        # 1. Attempt to update the admission status to 'Completed' ONLY IF it is currently 'Admitted'
+        cursor.execute("""
+            UPDATE admissions
+            SET status = 'Completed'
+            WHERE admission_id = ? AND status = 'Admitted'
+        """, (admission_id,))
+
+        # Check if the update successfully changed a row
+        if cursor.rowcount == 0:
+            conn.execute('ROLLBACK') # Rollback the transaction
+            # Check the current status to provide a more specific error
+            current_admission = cursor.execute("SELECT status FROM admissions WHERE admission_id = ?", (admission_id,)).fetchone()
+            if current_admission:
+                # Admission exists but was not 'Admitted'
+                return jsonify({'success': False, 'message': f'Admission is already in status: {current_admission["status"]}'}), 409 # 409 Conflict
+            else:
+                # Admission ID not found
+                return jsonify({'success': False, 'message': 'Admission not found'}), 404 # 404 Not Found
+
+        # 2. If the admission status update was successful, get the bed_id
+        # We can safely get the bed_id now as we know the admission existed and was updated
+        bed_row = cursor.execute("SELECT bed_id FROM admissions WHERE admission_id = ?", (admission_id,)).fetchone()
+
+        if bed_row is None:
+            # This case is unlikely if the first update succeeded, but is a safety check
+            conn.execute('ROLLBACK')
+            print(f"Error: Bed ID not found for admission {admission_id} after successful status update.")
+            return jsonify({'success': False, 'message': 'An internal error occurred (bed association missing).'}), 500
+
+
+        bed_id = bed_row['bed_id']
+
+        # 3. Update the beds table: set status to 'Available'
+        cursor.execute("""
+            UPDATE beds
+            SET status = 'Available'
+            WHERE bed_id = ?
+        """, (bed_id,))
+
+        # Commit the transaction if both updates were successful
+        conn.execute('COMMIT')
+
+        # Return a success response
+        return jsonify({'success': True, 'message': 'Patient discharged and bed made available'})
+
+    except Exception as e:
+        # If any error occurs, rollback the transaction
+        conn.execute('ROLLBACK')
+        print(f"Error during patient discharge: {e}") # Log the error on the server side
+        return jsonify({'success': False, 'message': 'An error occurred during discharge'}), 500 # 500 Internal Server Error
+    finally:
+        # Ensure the database connection is closed
+        close_db(conn)
+
+
+# Modify the add_inventory_item route for Hospital-only access
 @app.route('/inventory/add', methods=['GET', 'POST'])
 def add_inventory_item():
-    if request.method == 'POST':
-        item_name = request.form['item_name']
-        quantity = int(request.form['quantity'])
-        unit = request.form.get('unit')
-        item_id = str(uuid.uuid4())
+    # Check if the logged-in user is a 'hospital'
+    if session.get('user_type') != 'hospital':
+        flash('You do not have permission to add inventory items.', 'danger')
+        return redirect(url_for('view_inventory')) # Redirect to view page or dashboard
 
-        conn = get_db()
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Fetch existing item names and units for the dropdowns (for both GET and POST in case of error)
+    try:
+        existing_items_raw = cursor.execute("SELECT DISTINCT item_name FROM inventory ORDER BY item_name ASC").fetchall()
+        existing_units_raw = cursor.execute("SELECT DISTINCT unit FROM inventory WHERE unit IS NOT NULL AND unit != '' ORDER BY unit ASC").fetchall()
+
+        existing_items = [row['item_name'] for row in existing_items_raw]
+        existing_units = [row['unit'] for row in existing_units_raw]
+
+    except sqlite3.Error as e:
+        print(f"Database error fetching existing inventory data: {e}")
+        flash(f"Error loading inventory options: {e}", "danger")
+        # Proceed with empty lists if fetching fails
+        existing_items = []
+        existing_units = []
+    finally:
+        # Keep connection open for POST request processing if needed, or close if only GET
+        # For simplicity, we'll close it here and reopen if POST is processed.
+        # A better pattern might be to manage connection within the try/except blocks for POST.
+        # Let's close and reopen for clarity.
+        close_db(conn)
+
+
+    if request.method == 'POST':
+        # Get data from the form
+        # Check if 'item_name_select' or 'item_name_other' was used
+        item_name_select = request.form.get('item_name_select')
+        item_name_other = request.form.get('item_name_other')
+
+        # Determine the final item_name: use 'other' input if 'other' option is selected, otherwise use the selected value
+        item_name = item_name_other if item_name_select == 'other' else item_name_select
+
+        # Check if 'unit_select' or 'unit_other' was used
+        unit_select = request.form.get('unit_select')
+        unit_other = request.form.get('unit_other')
+
+        # Determine the final unit: use 'other' input if 'other' option is selected, otherwise use the selected value
+        unit = unit_other if unit_select == 'other' else unit_select
+
+        # Get quantity and perform validation
+        try:
+            quantity = int(request.form.get('quantity'))
+            if quantity <= 0:
+                 raise ValueError("Quantity must be a positive integer.")
+        except (ValueError, TypeError):
+            flash("Invalid quantity. Please enter a positive whole number.", "danger")
+            # Re-render the form with existing options and potentially entered data
+            return render_template('add_inventory_item.html',
+                                   existing_items=existing_items,
+                                   existing_units=existing_units,
+                                   # Pass back entered data to pre-fill form
+                                   item_name_select=item_name_select,
+                                   item_name_other=item_name_other,
+                                   unit_select=unit_select,
+                                   unit_other=unit_other,
+                                   quantity=request.form.get('quantity'))
+
+
+        # Basic validation for item_name (after determining the final value)
+        if not item_name:
+             flash("Item name is required.", "danger")
+             return render_template('add_inventory_item.html',
+                                   existing_items=existing_items,
+                                   existing_units=existing_units,
+                                   item_name_select=item_name_select,
+                                   item_name_other=item_name_other,
+                                   unit_select=unit_select,
+                                   unit_other=unit_other,
+                                   quantity=request.form.get('quantity'))
+
+
+        item_id = str(uuid.uuid4()) # Generate unique ID
+
+        conn = get_db() # Re-open connection for POST
         cursor = conn.cursor()
         try:
             cursor.execute("INSERT INTO inventory (item_id, item_name, quantity, unit) VALUES (?, ?, ?, ?)",
                            (item_id, item_name, quantity, unit))
             conn.commit()
+            flash(f"Inventory item '{item_name}' added successfully.", "success")
         except sqlite3.Error as e:
             flash(f"Error adding inventory item: {e}", "danger")
+            conn.rollback() # Rollback if something went wrong
         finally:
-            close_db(conn)
-        return redirect(url_for('view_inventory'))
-    return render_template('add_inventory_item.html')
+            close_db(conn) # Close connection after POST processing
 
+        return redirect(url_for('view_inventory'))
+
+    # For GET request, render the form, passing the fetched options
+    return render_template('add_inventory_item.html',
+                           existing_items=existing_items,
+                           existing_units=existing_units)
+
+# The view_inventory route remains the same, as it's already protected
+# for all logged-in users by the @app.before_request decorator.
 @app.route('/inventory')
 def view_inventory():
     conn = get_db()
-    inventory = conn.execute("SELECT * FROM inventory").fetchall()
+    inventory = conn.execute("SELECT * FROM inventory ORDER BY item_name ASC").fetchall() # Added ordering
     close_db(conn)
-    return render_template('view_inventory.html', inventory=inventory)
 
+    # Determine if the logged-in user can add or deduct inventory for template logic
+    can_add_inventory = session.get('user_type') == 'hospital'
+    can_deduct_inventory = session.get('user_type') in ['hospital', 'doctor']
+
+    # Pass these flags to the template
+    return render_template('view_inventory.html',
+                           inventory=inventory,
+                           can_add_inventory=can_add_inventory,
+                           can_deduct_inventory=can_deduct_inventory)
+
+
+# Add a new route to handle deducting inventory items
+@app.route('/inventory/deduct', methods=['POST']) # This will likely be an API endpoint for AJAX
+def deduct_inventory_item():
+    # Check if the logged-in user is a 'hospital' or 'doctor'
+    if session.get('user_type') not in ['hospital', 'doctor']:
+        # Return JSON response for API endpoint
+        return jsonify({'success': False, 'message': 'You do not have permission to deduct inventory items.'}), 403 # Forbidden
+
+    item_id = request.form.get('item_id')
+    # Add validation for quantity to ensure it's a positive integer
+    try:
+        quantity_to_deduct = int(request.form.get('quantity'))
+        if quantity_to_deduct <= 0:
+             raise ValueError("Quantity to deduct must be a positive integer.")
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Invalid quantity. Please enter a positive whole number.'}), 400 # Bad Request
+
+    # Basic validation for item_id
+    if not item_id:
+         return jsonify({'success': False, 'message': 'Item ID is required.'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        # Fetch current quantity first
+        cursor.execute("SELECT quantity FROM inventory WHERE item_id = ?", (item_id,))
+        result = cursor.fetchone()
+
+        if result is None:
+            return jsonify({'success': False, 'message': 'Item not found.'}), 404 # Not Found
+
+        current_quantity = result['quantity']
+        new_quantity = current_quantity - quantity_to_deduct
+
+        if new_quantity < 0:
+            # Prevent deducting more than available
+            return jsonify({'success': False, 'message': f'Cannot deduct {quantity_to_deduct}. Only {current_quantity} available.'}), 400 # Bad Request
+
+        # Update the quantity
+        cursor.execute("UPDATE inventory SET quantity = ? WHERE item_id = ?", (new_quantity, item_id))
+        conn.commit()
+
+        # Return success response with the new quantity
+        return jsonify({'success': True, 'message': 'Inventory quantity updated successfully', 'new_quantity': new_quantity})
+
+    except sqlite3.Error as e:
+        conn.rollback() # Rollback changes if there's an error
+        print(f"Database error deducting inventory: {e}")
+        return jsonify({'success': False, 'message': f'Database error: {e}'}), 500
+
+    finally:
+        close_db(conn)
 @app.route('/get_system_stats', methods=['GET'])
 def get_system_stats():
     conn = get_db()
@@ -854,22 +1366,35 @@ def get_now_serving():
 
 # Add this new route to your app.py
 
-@app.route('/get_admissions_data', methods=['GET']) # Renamed route for clarity (optional)
+@app.route('/get_admissions_data', methods=['GET'])
 def get_admissions_data():
-    conn = None # Initialize conn to None
+    conn = None
     try:
         conn = get_db()
         cursor = conn.cursor()
 
-        # 1. Determine the date range for the last 5 days
-        today = datetime.now().date()
-        last_5_days_dates = [(today - timedelta(days=i)) for i in range(4, -1, -1)] # List of date objects [4 days ago, ..., today]
-        date_strings = [d.strftime('%Y-%m-%d') for d in last_5_days_dates] # List of 'YYYY-MM-DD' strings
-        start_date_str = date_strings[0] # The date 4 days ago
+        utc = pytz.timezone('UTC')
+        kolkata_tz = pytz.timezone('Asia/Kolkata')
 
-        # 2. Query admissions grouped by date for the last 5 days
-        # Use DATE() function for SQLite to extract date part
-        # Filter records from the start date onwards
+        now_kolkata = datetime.now(kolkata_tz)
+
+        today_start_kolkata = now_kolkata.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        start_date_kolkata = today_start_kolkata - timedelta(days=4)
+
+        today_end_kolkata = now_kolkata.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        end_date_kolkata = today_end_kolkata
+
+        start_date_utc = start_date_kolkata.astimezone(utc)
+        end_date_utc = end_date_kolkata.astimezone(utc)
+
+        start_date_utc_str = start_date_utc.strftime('%Y-%m-%d %H:%M:%S')
+        end_date_utc_str = end_date_utc.strftime('%Y-%m-%d %H:%M:%S.%f')
+
+        date_labels_kolkata = [(start_date_kolkata + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(5)]
+        # --- End Timezone-aware calculation ---
+
         query = """
             SELECT
                 DATE(admission_time) AS admission_date,
@@ -877,27 +1402,75 @@ def get_admissions_data():
             FROM
                 admissions
             WHERE
-                DATE(admission_time) >= ?
+                admission_time BETWEEN ? AND ? -- Filter using the calculated UTC range
             GROUP BY
                 admission_date
             ORDER BY
                 admission_date ASC;
         """
-        # Execute query safely with parameter binding
-        cursor.execute(query, (start_date_str,))
+
+        cursor.execute(query, (start_date_utc_str, end_date_utc_str))
         admissions_from_db = cursor.fetchall()
 
-        # 3. Create a dictionary to easily lookup counts by date
         db_counts = {row['admission_date']: row['daily_admissions_count'] for row in admissions_from_db}
 
-        # 4. Prepare final data ensuring all 5 days are present (with 0 count if no admissions)
         final_admissions_data = {'labels': [], 'data': []}
-        for date_str in date_strings:
-            final_admissions_data['labels'].append(date_str) # Use 'YYYY-MM-DD' as label
-            # Get count from db_counts, default to 0 if date not found
-            final_admissions_data['data'].append(db_counts.get(date_str, 0))
 
-        return jsonify(final_admissions_data)
+        for date_str_kolkata in date_labels_kolkata:
+             
+             query_all = """
+                 SELECT
+                     admission_time -- Fetch the raw timestamp
+                 FROM
+                     admissions
+                 WHERE
+                     admission_time BETWEEN ? AND ? -- Filter using the calculated UTC range
+                 ORDER BY
+                     admission_time ASC;
+             """
+             cursor.execute(query_all, (start_date_utc_str, end_date_utc_str))
+             all_admissions_raw = cursor.fetchall()
+
+             # --- Group admissions by date in Asia/Kolkata timezone in Python ---
+             daily_counts_kolkata = {date_str: 0 for date_str in date_labels_kolkata} # Initialize counts to 0
+
+             for row in all_admissions_raw:
+                 raw_admission_time_str = row['admission_time']
+
+                 try:
+                     # Parse the raw timestamp (assuming it's UTC naive or UTC aware if format includes +00:00)
+                     # Assuming it's UTC naive string 'YYYY-MM-DD HH:MM:SS' or 'YYYY-MM-DD HH:MM:SS.f'
+                     if '.' in raw_admission_time_str:
+                         admission_time_utc_naive = datetime.strptime(raw_admission_time_str, '%Y-%m-%d %H:%M:%S.%f')
+                     else:
+                         admission_time_utc_naive = datetime.strptime(raw_admission_time_str, '%Y-%m-%d %H:%M:%S')
+
+                     # Make the datetime object timezone-aware (assuming the database stores UTC)
+                     admission_time_utc_aware = utc.localize(admission_time_utc_naive)
+
+                     # Convert from UTC to Asia/Kolkata (IST)
+                     admission_time_kolkata = admission_time_utc_aware.astimezone(kolkata_tz)
+
+                     # Get the date part in Asia/Kolkata timezone as 'YYYY-MM-DD' string
+                     admission_date_kolkata_str = admission_time_kolkata.strftime('%Y-%m-%d')
+
+                     # Increment the count for this date in our dictionary
+                     if admission_date_kolkata_str in daily_counts_kolkata:
+                         daily_counts_kolkata[admission_date_kolkata_str] += 1
+                     # Admissions outside the 5-day range in Kolkata time will be ignored, which is correct.
+
+                 except (ValueError, TypeError) as e:
+                      print(f"Error parsing or converting admission time '{raw_admission_time_str}' for grouping: {e}")
+                      # Skip this entry if time is invalid
+
+
+             # 5. Prepare final data using the calculated labels and counts
+             final_admissions_data = {'labels': date_labels_kolkata, 'data': []}
+             for date_str_kolkata in date_labels_kolkata:
+                  final_admissions_data['data'].append(daily_counts_kolkata[date_str_kolkata]) # Add the count for each date
+
+
+             return jsonify(final_admissions_data)
 
     except sqlite3.Error as e:
         print(f"Database error fetching daily admissions data: {e}")
@@ -905,13 +1478,124 @@ def get_admissions_data():
         return jsonify({'error': True, 'message': 'Could not fetch daily admissions data', 'details': str(e)}), 500
     except Exception as e:
         print(f"General error fetching daily admissions data: {e}")
-         # Ensure consistent error format
+        # Ensure consistent error format
         return jsonify({'error': True, 'message': 'An unexpected error occurred', 'details': str(e)}), 500
     finally:
         # Ensure close_db is called even if conn wasn't successfully assigned in try block
         if conn:
             close_db(conn)
 
+
+@app.route('/get_daily_opd_by_department', methods=['GET'])
+def get_daily_opd_by_department():
+    """Fetches OPD booking counts by department for the current day."""
+    conn = None # Initialize conn to None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Determine today's date range in the target timezone (Asia/Kolkata)
+        utc = pytz.timezone('UTC')
+        kolkata_tz = pytz.timezone('Asia/Kolkata') # Define India/Kolkata timezone (IST)
+
+        now_kolkata = datetime.now(kolkata_tz) # Get current time in Kolkata
+        today_start_kolkata = now_kolkata.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end_kolkata = now_kolkata.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        # Convert to UTC for database query
+        today_start_utc = today_start_kolkata.astimezone(utc)
+        today_end_utc = today_end_kolkata.astimezone(utc)
+
+        today_start_str = today_start_utc.strftime('%Y-%m-%d %H:%M:%S')
+        today_end_str = today_end_utc.strftime('%Y-%m-%d %H:%M:%S')
+
+        # Query OPD queue entries for today, grouped by department
+        query = """
+            SELECT
+                department,
+                COUNT(*) AS department_count
+            FROM
+                opd_queue
+            WHERE
+                check_in_time BETWEEN ? AND ?
+            GROUP BY
+                department
+            ORDER BY
+                department ASC;
+        """
+        cursor.execute(query, (today_start_str, today_end_str))
+        daily_opd_data = cursor.fetchall()
+
+        # Prepare data for Chart.js
+        labels = [row['department'] for row in daily_opd_data]
+        data = [row['department_count'] for row in daily_opd_data]
+
+        return jsonify({'labels': labels, 'data': data})
+
+    except sqlite3.Error as e:
+        print(f"Database error fetching daily OPD data: {e}")
+        return jsonify({'error': True, 'message': 'Could not fetch daily OPD data', 'details': str(e)}), 500
+    except Exception as e:
+        print(f"General error fetching daily OPD data: {e}")
+        return jsonify({'error': True, 'message': 'An unexpected error occurred', 'details': str(e)}), 500
+    finally:
+        if conn:
+            close_db(conn)
+
+# Add this new route to your app.py
+@app.route('/get_monthly_opd_by_department', methods=['GET'])
+def get_monthly_opd_by_department():
+    """Fetches OPD booking counts by department for the last month."""
+    conn = None # Initialize conn to None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Determine the date range for the last month
+        # Get today's date
+        today = datetime.now().date()
+        # Calculate the date one month ago
+        # This logic needs to handle month boundaries carefully. A simpler approach for "last 30 days" is often sufficient.
+        # Let's calculate the start date as 30 days ago for simplicity, aligning with the spirit of "last month".
+        start_date = today - timedelta(days=30)
+
+        # Convert dates to strings for the query
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        today_str = today.strftime('%Y-%m-%d') # Include today in the range
+
+        # Query OPD queue entries for the last month, grouped by department
+        # Use DATE() function for SQLite to extract date part for comparison
+        query = """
+            SELECT
+                department,
+                COUNT(*) AS department_count
+            FROM
+                opd_queue
+            WHERE
+                DATE(check_in_time) BETWEEN ? AND ?
+            GROUP BY
+                department
+            ORDER BY
+                department ASC;
+        """
+        cursor.execute(query, (start_date_str, today_str))
+        monthly_opd_data = cursor.fetchall()
+
+        # Prepare data for Chart.js
+        labels = [row['department'] for row in monthly_opd_data]
+        data = [row['department_count'] for row in monthly_opd_data]
+
+        return jsonify({'labels': labels, 'data': data})
+
+    except sqlite3.Error as e:
+        print(f"Database error fetching monthly OPD data: {e}")
+        return jsonify({'error': True, 'message': 'Could not fetch monthly OPD data', 'details': str(e)}), 500
+    except Exception as e:
+        print(f"General error fetching monthly OPD data: {e}")
+        return jsonify({'error': True, 'message': 'An unexpected error occurred', 'details': str(e)}), 500
+    finally:
+        if conn:
+            close_db(conn)
 # --- Chatbot Endpoint (Gemini Integration with Serializable History and Commands) ---
 @app.route('/chatbot/send_message', methods=['POST'])
 def chatbot_send_message():
