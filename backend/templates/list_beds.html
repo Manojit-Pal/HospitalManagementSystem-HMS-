@@ -32,8 +32,7 @@
 
         .bed-list-container h1 {
             text-align: center;
-            margin-bottom: 40px;
-            /* More space below heading */
+            margin-bottom: 20px; /* Reduced margin to make space for filters */
             color: var(--text-color);
             /* Use CSS variable */
             font-weight: 700;
@@ -213,8 +212,8 @@
         }
 
          [data-bs-theme="dark"] .status-group-heading {
-             border-bottom-color: var(--primary-color-dark); /* Dark mode primary color */
-             color: var(--primary-color-dark); /* Dark mode primary color */
+              border-bottom-color: var(--primary-color-dark); /* Dark mode primary color */
+              color: var(--primary-color-dark); /* Dark mode primary color */
          }
 
         .ward-heading {
@@ -228,16 +227,16 @@
         }
 
          [data-bs-theme="dark"] .ward-heading {
-             border-bottom-color: var(--dark-mode-border-color); /* Dark mode border color */
-             color: var(--text-color); /* Text color variable */
+              border-bottom-color: var(--dark-mode-border-color); /* Dark mode border color */
+              color: var(--text-color); /* Text color variable */
          }
 
-         hr.my-5 {
-             border-top: 1px solid var(--border-color); /* Ensure HR respects dark mode */
-         }
-         [data-bs-theme="dark"] hr.my-5 {
-              border-top-color: var(--dark-mode-border-color);
-         }
+          hr.my-5 {
+               border-top: 1px solid var(--border-color); /* Ensure HR respects dark mode */
+          }
+          [data-bs-theme="dark"] hr.my-5 {
+               border-top-color: var(--dark-mode-border-color);
+          }
 
          /* Style for the container holding the Add Bed button */
          .add-bed-button-container {
@@ -247,6 +246,24 @@
              margin-bottom: 20px; /* Space below the button */
          }
 
+         .bed-filter-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px; 
+            flex-wrap: wrap; 
+         }
+         
+         .bed-filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* Space between label and dropdown */
+         }
+
+         .bed-filter-group label {
+             margin-bottom: 0; /* Remove bottom margin for label */
+         }
 
     </style>
 </head>
@@ -343,7 +360,7 @@
             <div class="card-body"> {# Wrap content in card-body #}
                 <h1>Bed Availability</h1>
 
-                {# --- NEW: Add New Bed Button above the list, centered --- #}
+                {# --- Add New Bed Button above the list, centered --- #}
                 {% if session.get('user_type') == 'hospital' %} {# Only show button for hospital users #}
                 <div class="add-bed-button-container">
                     <a href="{{ url_for('add_bed') }}" class="btn btn-primary">Add New Bed</a>
@@ -352,12 +369,41 @@
                 {# --- END NEW --- #}
 
 
+                {# --- Filter Dropdowns Container --- #}
+                <div class="bed-filter-container">
+                    {# Ward Filter #}
+                    <div class="bed-filter-group">
+                        <label for="wardFilter" class="form-label">Filter by Ward:</label>
+                        <select id="wardFilter" class="form-select w-auto">
+                            {% for ward in wards %}
+                                <option value="{{ ward }}" {% if ward == selected_ward %}selected{% endif %}>
+                                    {% if ward == 'All' %}View All Wards{% else %}{{ ward }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {# Status Filter #}
+                    <div class="bed-filter-group">
+                         <label for="statusFilter" class="form-label">Filter by Status:</label>
+                         <select id="statusFilter" class="form-select w-auto">
+                            {% for status_option in statuses %}
+                                <option value="{{ status_option }}" {% if status_option == selected_status %}selected{% endif %}>
+                                    {% if status_option == 'All' %}View All Statuses{% else %}{{ status_option }}{% endif %}
+                                </option>
+                            {% endfor %}
+                         </select>
+                    </div>
+                </div>
+                {# --- End Filter Dropdowns Container --- #}
+
+
                 {% if grouped_beds is none or (grouped_beds['Available'] | length == 0 and grouped_beds['Occupied'] | length == 0) %}
-                    <p class="text-center text-muted">No beds registered yet.</p>
+                    <p class="text-center text-muted">No beds found{% if selected_ward != 'All' or selected_status != 'All' %}{% if selected_ward != 'All' %} in Ward {{ selected_ward }}{% endif %}{% if selected_ward != 'All' and selected_status != 'All' %} and{% endif %}{% if selected_status != 'All' %} with status "{{ selected_status }}"{% endif %}{% endif %}.</p>
                 {% else %}
 
                     {# --- Display Available Beds Group --- #}
-                    {# Check if there are any Available beds #}
+                    {# Check if there are any Available beds in the filtered result #}
                     {% if grouped_beds['Available'] %}
                         <h2 class="status-group-heading available-beds-heading">Available Beds</h2>
                         {# Loop through wards in the Available group #}
@@ -377,10 +423,10 @@
                                             <span class="bed-status-span status-{{ bed['status'] }}">{{ bed['status'] }}</span>
                                             {# Button to toggle details - Add data attributes here #}
                                             <button class="btn btn-sm btn-outline-info toggle-details-btn" type="button"
-                                                    data-bs-toggle="collapse"
-                                                    data-bs-target="#bedDetails_{{ bed['bed_id'] }}"
-                                                    aria-expanded="false"
-                                                    aria-controls="bedDetails_{{ bed['bed_id'] }}">
+                                                     data-bs-toggle="collapse"
+                                                     data-bs-target="#bedDetails_{{ bed['bed_id'] }}"
+                                                     aria-expanded="false"
+                                                     aria-controls="bedDetails_{{ bed['bed_id'] }}">
                                                 View Details {# Initial button text #}
                                             </button>
                                         </div>
@@ -394,7 +440,10 @@
                                         <p><strong>Bed Type:</strong> {{ bed['bed_type'] if bed['bed_type'] is not none else 'N/A' }}</p>
                                         {# Patient currently occupying the bed (if status is Occupied) #}
                                         {% if bed['status'] == 'Occupied' %}
-                                            <p><strong>Occupied by:</strong> Patient details not available</p>
+                                             {# NOTE: Your current query doesn't fetch patient name for Occupied beds.
+                                                You would need to JOIN the patients table to display patient name here.
+                                                For now, displaying a placeholder. #}
+                                            <p><strong>Occupied by:</strong> {{ bed['current_patient_id'] if bed['current_patient_id'] is not none else 'N/A' }} (Patient ID)</p>
                                         {% endif %}
 
                                         {# Optional: Add actions here, e.g., View Patient, Discharge, etc. #}
@@ -410,9 +459,9 @@
 
 
                     {# --- Display Occupied Beds Group --- #}
-                    {# Check if there are any Occupied beds #}
+                    {# Check if there are any Occupied beds in the filtered result #}
                     {% if grouped_beds['Occupied'] %}
-                        {# Add a separator if there were Available beds #}
+                        {# Add a separator if there were Available beds displayed #}
                         {% if grouped_beds['Available'] %}<hr class="my-5">{% endif %}
                         <h2 class="status-group-heading occupied-beds-heading">Occupied Beds</h2>
                         {# Loop through wards in the Occupied group #}
@@ -432,10 +481,10 @@
                                             <span class="bed-status-span status-{{ bed['status'] }}">{{ bed['status'] }}</span>
                                             {# Button to toggle details - Add data attributes here #}
                                             <button class="btn btn-sm btn-outline-info toggle-details-btn" type="button"
-                                                    data-bs-toggle="collapse"
-                                                    data-bs-target="#bedDetails_{{ bed['bed_id'] }}"
-                                                    aria-expanded="false"
-                                                    aria-controls="bedDetails_{{ bed['bed_id'] }}">
+                                                     data-bs-toggle="collapse"
+                                                     data-bs-target="#bedDetails_{{ bed['bed_id'] }}"
+                                                     aria-expanded="false"
+                                                     aria-controls="bedDetails_{{ bed['bed_id'] }}">
                                                 View Details {# Initial button text #}
                                             </button>
                                         </div>
@@ -449,7 +498,10 @@
                                         <p><strong>Bed Type:</strong> {{ bed['bed_type'] if bed['bed_type'] is not none else 'N/A' }}</p>
                                         {# Patient currently occupying the bed (if status is Occupied) #}
                                         {% if bed['status'] == 'Occupied' %}
-                                            <p><strong>Occupied by:</strong> Patient details not available</p>
+                                             {# NOTE: Your current query doesn't fetch patient name for Occupied beds.
+                                                You would need to JOIN the patients table to display patient name here.
+                                                For now, displaying a placeholder. #}
+                                            <p><strong>Occupied by:</strong> {{ bed['current_patient_id'] if bed['current_patient_id'] is not none else 'N/A' }} (Patient ID)</p>
                                         {% endif %}
 
                                         {# Optional: Add actions here, e.g., View Patient, Discharge, etc. #}
@@ -467,7 +519,7 @@
 
 
                 {# --- Keep Back to Dashboard button at the bottom --- #}
-                <div class="mt-4"> {# Add margin top #}
+                <div class="mt-4 text-center"> {# Add margin top and center #}
                     <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
                 </div>
                 {# --- END Keep Back to Dashboard button at the bottom --- #}
@@ -527,8 +579,10 @@
         const recentActivitiesUrl = "{{ url_for('get_recent_activities') }}";
         const nowServingUrl = "{{ url_for('get_now_serving') }}";
         const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
-        const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
-        const deductInventoryUrl = "{{ url_for('deduct_inventory_item') }}"; // Include if script.js needs it
+        const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}"; // If needed elsewhere by script.js
+        const deductInventoryUrl = "{{ url_for('deduct_inventory_item') }}"; // If needed elsewhere by script.js
+        const listBedsUrl = "{{ url_for('list_beds') }}"; // URL for beds page (for filtering)
+
         // Add any other URLs needed by script.js here
 
         // Declare chart variables globally if script.js expects them (only if script.js is shared)
@@ -544,7 +598,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // --- AOS Initialization ---
-            // If AOS.init() is not in script.js, initialize it here
             if (typeof AOS !== 'undefined') {
                 AOS.init();
             } else {
@@ -556,34 +609,25 @@
             // because it's included with 'defer'. Do NOT duplicate that logic here.
 
             // --- Bed Details Toggle Button Text Logic ---
-            // Select all buttons that trigger collapse for bed details
             const toggleButtons = document.querySelectorAll('.bed-entry-header .toggle-details-btn');
-
             toggleButtons.forEach(button => {
-                // Get the target collapse element using the data-bs-target attribute
                 const targetId = button.getAttribute('data-bs-target');
                 const targetElement = document.querySelector(targetId);
 
                 if (targetElement) {
-                    // Add listeners for Bootstrap's collapse events on the TARGET element
                     targetElement.addEventListener('show.bs.collapse', function () {
-                        // When the details are shown, change button text to 'Hide Details'
                         button.textContent = 'Hide Details';
-                        // Optional: Change button style when expanded
                         button.classList.remove('btn-outline-info');
                         button.classList.add('btn-info');
                     });
 
                     targetElement.addEventListener('hide.bs.collapse', function () {
-                        // When the details are hidden, change button text back to 'View Details'
                         button.textContent = 'View Details';
-                        // Optional: Change button style when collapsed
-                         button.classList.remove('btn-info');
-                         button.classList.add('btn-outline-info');
+                        button.classList.remove('btn-info');
+                        button.classList.add('btn-outline-info');
                     });
 
-                     // Initial state check on page load
-                    // Check if the target element already has the 'show' class (e.g., if page reloaded with expanded section)
+                    // Initial state check
                     if (targetElement.classList.contains('show')) {
                          button.textContent = 'Hide Details';
                          button.classList.remove('btn-outline-info');
@@ -593,14 +637,39 @@
                          button.classList.remove('btn-info');
                          button.classList.add('btn-outline-info');
                     }
-
-
                 } else {
                     console.warn(`Collapse target element not found for button with target: ${targetId}`);
                 }
             });
             // --- End Bed Details Toggle Button Text Logic ---
 
+            // --- Bed Filter Logic (Ward and Status) ---
+            const wardFilter = document.getElementById('wardFilter');
+            const statusFilter = document.getElementById('statusFilter');
+
+            function applyFilters() {
+                const selectedWard = wardFilter ? wardFilter.value : 'All'; // Default if element not found
+                const selectedStatus = statusFilter ? statusFilter.value : 'All'; // Default if element not found
+
+                // Construct the new URL with current filters as query parameters
+                const newUrl = `${listBedsUrl}?ward=${encodeURIComponent(selectedWard)}&status=${encodeURIComponent(selectedStatus)}`;
+
+                // Navigate to the new URL (triggers page reload)
+                window.location.href = newUrl;
+            }
+
+            if (wardFilter) {
+                wardFilter.addEventListener('change', applyFilters);
+            } else {
+                 console.warn("Ward filter dropdown not found.");
+            }
+
+            if (statusFilter) {
+                statusFilter.addEventListener('change', applyFilters);
+            } else {
+                 console.warn("Status filter dropdown not found.");
+            }
+            // --- End Bed Filter Logic ---
 
         }); // End DOMContentLoaded
     </script>

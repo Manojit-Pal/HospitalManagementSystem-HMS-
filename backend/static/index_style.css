@@ -1,4 +1,3 @@
-/* Page Fade-in Animation */
 body {
     opacity: 0;
     transition: opacity 0.5s ease-in-out;
@@ -8,12 +7,10 @@ body.loaded {
     opacity: 1;
 }
 
-/* Dashboard Dark Mode (Overrides) */
 .dark-mode .nav-link {
     color: #ccc !important;
 }
 
-/* Card Hover Effect */
 .card {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -23,7 +20,6 @@ body.loaded {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* Button Hover Glow */
 .btn-primary:hover,
 .btn-outline-primary:hover,
 .btn-outline-danger:hover,
@@ -31,7 +27,6 @@ body.loaded {
     box-shadow: 0 0 10px rgba(0, 123, 255, 0.4);
 }
 
-/* Dark Mode Toggle Button */
 #darkModeToggle {
     transition: all 0.3s ease;
     font-size: 14px;
@@ -44,7 +39,6 @@ body.loaded {
     cursor: pointer;
 }
 
-/* Chart Container */
 .chart-container {
     max-width: 40vw;
     height: 200px;
@@ -57,7 +51,6 @@ body.loaded {
     }
 }
 
-/* Responsive Fix for Card Grid */
 @media (max-width: 576px) {
     .col-md-3 {
         flex: 0 0 100%;
@@ -125,43 +118,33 @@ body.dark-mode .btn-primary {
     }
 }
 
-/* Add this to your style.css */
-/* Dark Mode Hero Section */
 body.dark-mode header.bg-light {
     background-color: #1e1e1e !important;
-    /* Or another dark background color */
 }
 
 body.dark-mode header.bg-light h1 {
     color: #f1f1f1 !important;
-    /* Set heading color to a visible light color */
 }
 
 body.dark-mode header.bg-light p.lead {
     color: #cccccc !important;
-    /* Set paragraph color to a visible light color */
 }
 
-/* Add this rule */
+
 body.dark-mode .navbar-text {
     color: #f1f1f1 !important;
-    /* Ensure visibility in dark mode */
 }
 
 body.dark-mode footer {
     background-color: #1e1e1e !important;
     color: #f1f1f1;
-    /* Sets the text color for the footer */
     border-color: #333;
 }
 
-/* Add this rule */
 body.dark-mode footer .text-muted {
     color: #b0b0b0 !important;
-    /* A lighter gray for better contrast in dark mode */
 }
 
-/* These rules hide the moon and show the sun in dark mode */
 body.dark-mode .moon-icon {
     display: none !important;
 }
@@ -170,53 +153,36 @@ body.dark-mode .sun-icon {
     display: inline-block !important;
 }
 
-/* Optional: Improve button appearance in dark mode */
 body.dark-mode #darkModeToggle {
     color: #f1f1f1;
-    /* Light color for icon and border in dark mode */
     border-color: #f1f1f1;
 }
 
 body.dark-mode #darkModeToggle:hover {
     background-color: #333;
-    /* Darker background on hover in dark mode */
 }
-
-/* System Overview Section Styles */
-/* .system-overview .card {
-    
-} */
 
 .system-overview .card-title {
     font-size: 1.2rem;
-    /* Adjust title size */
     margin-bottom: 15px;
 }
 
 .system-overview .card-text.display-4 {
     font-size: 2.5rem;
-    /* Adjust the size of the statistic number */
     font-weight: bold;
     color: var(--dark-text);
-    /* Default color from your variables */
-    /* Ensure these are not overridden by conflicting rules */
 }
 
-/* Dark mode styles for the stats text */
 body.dark-mode .system-overview .card-text.display-4 {
     color: #f1f1f1 !important;
-    /* Ensure light color in dark mode */
 }
 
-/* Ensure card backgrounds and text are correct in dark mode - already in your CSS but double-check */
 body.dark-mode .system-overview .card {
     background-color: #1e1e1e;
     color: #f1f1f1;
     border-color: #333;
 }
 
-/* Add this to your style.css */
-/* Recent Activities Section Styles */
 .recent-activities .card-title {
     font-size: 1.2rem;
     margin-bottom: 15px;
@@ -229,7 +195,6 @@ body.dark-mode .system-overview .card {
     padding: 10px 15px;
     border-bottom: 1px solid var(--card-border-color);
     background-color: transparent;
-    /* Ensure it respects parent card background */
 }
 
 .recent-activities .list-group-item:last-child {
@@ -244,10 +209,8 @@ body.dark-mode .system-overview .card {
 .recent-activities .list-group-item .activity-time {
     font-size: 0.8rem;
     color: #777;
-    /* Default time color */
 }
 
-/* Dark mode styles for Recent Activities */
 body.dark-mode .recent-activities .card {
     background-color: #1e1e1e;
     color: #f1f1f1;
@@ -256,51 +219,39 @@ body.dark-mode .recent-activities .card {
 
 body.dark-mode .recent-activities .card-title {
     color: #f1f1f1;
-    /* Light title in dark mode */
 }
 
 body.dark-mode .recent-activities .list-group-item {
     border-bottom-color: #333;
-    /* Darker border in dark mode */
     color: #f1f1f1;
-    /* Light text in dark mode */
 }
 
 body.dark-mode .recent-activities .list-group-item .activity-time {
     color: #b0b0b0;
-    /* Lighter time color in dark mode */
 }
 
-/* Add this to your style.css */
-/* Now Serving OPD Tokens Section Styles */
 .now-serving-opd .card-title {
     font-size: 1.1rem;
     margin-bottom: 10px;
     color: var(--dark-text);
-    /* Default color */
 }
 
 body.dark-mode .now-serving-opd .card-title {
     color: var(--dark-mode-text);
-    /* Light color in dark mode */
 }
 
 .now-serving-opd .card-text.serving-token {
-    /* Style for the token number */
     font-size: 2rem;
     font-weight: bold;
     color: var(--primary-color);
-    /* Use primary color for tokens */
 }
 
 body.dark-mode .now-serving-opd .card-text.serving-token {
     color: #5bc0de;
-    /* A different color for tokens in dark mode (e.g., Bootstrap info color) */
 }
 
 .now-serving-opd .card {
     text-align: center;
-    /* Center content in the card */
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -310,7 +261,6 @@ body.dark-mode .now-serving-opd .card {
     border-color: var(--dark-mode-border);
 }
 
-/* Scroll Top Button - This will be the lower button in the stack */
 #scrollTopBtn {
     position: fixed;
     bottom: 20px;
@@ -440,7 +390,6 @@ body.dark-mode .now-serving-opd .card {
     word-wrap: break-word;
     font-size: 0.95rem;
     line-height: 1.4;
-    /* box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* Subtle shadow on bubbles - adjust */
 }
 
 /* User messages */

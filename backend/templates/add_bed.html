@@ -42,17 +42,23 @@
             /* Bolder heading */
         }
 
-         /* Style for the "Other" input fields - initially hidden */
+        /* Style for the "Other" input fields - initially hidden */
         .form-group-other {
-            display: none; /* Hide by default */
-            margin-top: 15px; /* Add some space above the other input */
-            padding-top: 15px; /* Add padding to visually separate */
-            border-top: 1px dashed var(--border-color); /* Add a dashed border */
+            display: none;
+            /* Hide by default */
+            margin-top: 15px;
+            /* Add some space above the other input */
+            padding-top: 15px;
+            /* Add padding to visually separate */
+            border-top: 1px dashed var(--border-color);
+            /* Add a dashed border */
         }
 
         .form-group-other label {
-            font-style: italic; /* Italicize the "Other" label */
-            color: var(--secondary-text-color); /* Use a slightly different color */
+            font-style: italic;
+            /* Italicize the "Other" label */
+            color: var(--secondary-text-color);
+            /* Use a slightly different color */
         }
 
 
@@ -62,23 +68,10 @@
             /* Adjust shadow for dark mode */
         }
 
-         body.dark-mode .form-group-other {
-             border-top-color: var(--dark-mode-border-color); /* Adjust border color in dark mode */
-         }
-
-
-        /* Ensure form controls look good in dark mode */
-        [data-bs-theme="dark"] .form-control,
-        [data-bs-theme="dark"] .form-select {
-             background-color: var(--dark-mode-input-bg);
-             color: var(--dark-mode-input-color);
-             border-color: var(--dark-mode-input-border);
+        body.dark-mode .form-group-other {
+            border-top-color: var(--dark-mode-border-color);
+            /* Adjust border color in dark mode */
         }
-
-        [data-bs-theme="dark"] .form-control::placeholder {
-             color: var(--dark-mode-input-placeholder);
-        }
-
     </style>
 </head>
 
@@ -182,7 +175,8 @@
                             <option value="">-- Select Ward --</option>
                             {% for department in existing_departments %}
                             {# Pre-select option if form was submitted with error #}
-                            <option value="{{ department }}" {% if selected_ward_select == department %}selected{% endif %}>{{ department }}</option>
+                            <option value="{{ department }}" {% if selected_ward_select==department %}selected{% endif
+                                %}>{{ department }}</option>
                             {% endfor %}
                             <option value="other">-- Other (Specify Below) --</option>
                         </select>
@@ -192,23 +186,28 @@
                     <div class="mb-3 form-group-other" id="ward_other_group">
                         <label for="ward_other" class="form-label">Ward (Other):</label>
                         {# Add required attribute dynamically with JS when visible #}
-                        <input type="text" class="form-control" id="ward_other" name="ward_other" {% if selected_ward_select == 'other' %}value="{{ selected_ward_other }}"{% endif %}>
+                        <input type="text" class="form-control" id="ward_other" name="ward_other" {% if
+                            selected_ward_select=='other' %}value="{{ selected_ward_other }}" {% endif %}>
                     </div>
 
                     {# Bed Number/ID Input #}
                     <div class="mb-3">
                         <label for="bed_number" class="form-label">Bed Number/ID:</label>
-                         {# Pre-fill if form submitted with error #}
-                        <input type="text" class="form-control" id="bed_number" name="bed_number" value="{{ selected_bed_number if selected_bed_number is not none else '' }}" required>
+                        {# Pre-fill if form submitted with error #}
+                        <input type="text" class="form-control" id="bed_number" name="bed_number"
+                            value="{{ selected_bed_number if selected_bed_number is not none else '' }}" required>
                     </div>
                     <div class="mb-3">
                         <label for="bed_type" class="form-label">Bed Type:</label>
                         <select class="form-select" id="bed_type" name="bed_type"> {# Use form-select #}
                             {# Pre-select option if form was submitted with error #}
-                            <option value="General" {% if selected_bed_type == 'General' %}selected{% endif %}>General</option>
-                            <option value="ICU" {% if selected_bed_type == 'ICU' %}selected{% endif %}>ICU</option>
-                            <option value="Emergency" {% if selected_bed_type == 'Emergency' %}selected{% endif %}>Emergency</option>
-                            <option value="Private" {% if selected_bed_type == 'Private' %}selected{% endif %}>Private</option>
+                            <option value="General" {% if selected_bed_type=='General' %}selected{% endif %}>General
+                            </option>
+                            <option value="ICU" {% if selected_bed_type=='ICU' %}selected{% endif %}>ICU</option>
+                            <option value="Emergency" {% if selected_bed_type=='Emergency' %}selected{% endif %}>
+                                Emergency</option>
+                            <option value="Private" {% if selected_bed_type=='Private' %}selected{% endif %}>Private
+                            </option>
                             {# Add other bed types as needed #}
                         </select>
                     </div>
@@ -216,7 +215,8 @@
                 </form>
 
                 <div class="mt-4"> {# Add margin top #}
-                    <a href="{{ url_for('list_beds') }}" class="btn btn-secondary me-2">View Bed Availability</a> {# Added me-2 for spacing #}
+                    <a href="{{ url_for('list_beds') }}" class="btn btn-secondary me-2">View Bed Availability</a> {#
+                    Added me-2 for spacing #}
                     <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
                 </div>
             </div>
@@ -310,13 +310,13 @@
 
             // Add event listener to the ward dropdown
             if (wardSelect) {
-                wardSelect.addEventListener('change', function() {
+                wardSelect.addEventListener('change', function () {
                     toggleOtherInput(wardSelect, wardOtherGroup, wardOtherInput);
                 });
-                 // Initial check on page load (important if form was submitted with error)
-                 toggleOtherInput(wardSelect, wardOtherGroup, wardOtherInput);
+                // Initial check on page load (important if form was submitted with error)
+                toggleOtherInput(wardSelect, wardOtherGroup, wardOtherInput);
             } else {
-                 console.warn("Ward select dropdown not found!");
+                console.warn("Ward select dropdown not found!");
             }
             // --- End Ward Dropdown "Other" Logic ---
 

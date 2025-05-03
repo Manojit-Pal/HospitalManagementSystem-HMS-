@@ -6,32 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hospital Management System</title>
 
-    <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 
-    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- AOS (Animate On Scroll) -->
     <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
 
-    <!-- FontAwesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='index_style.css') }}">
 
 </head>
 
 <body>
-    <!-- Page Loader -->
+
     <div id="loader-wrapper">
         <div class="loader"></div>
     </div>
 
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm px-4" data-aos="fade-down">
         <a class="navbar-brand fw-bold text-primary" href="{{ url_for('index') }}">🏥 HMS</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -361,24 +355,22 @@
 
     {# Define URL variables for script.js using Jinja2 - This block is PROCESSED BY FLASK #}
     <script>
-        // Define global JavaScript variables using Flask's Jinja2 url_for function
-        // These variables will be accessible in your script.js file
+        
         const currentUserType = "{{ session.get('user_type') }}";
         const systemStatsUrl = "{{ url_for('get_system_stats') }}";
         const recentActivitiesUrl = "{{ url_for('get_recent_activities') }}";
         const nowServingUrl = "{{ url_for('get_now_serving') }}";
         const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
-        // Add any other endpoints needed by script.js here, e.g.:
+        
         const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}";
-        const dailyOpdStatsUrl = "{{ url_for('get_daily_opd_by_department') }}"; // New URL
-        const monthlyOpdStatsUrl = "{{ url_for('get_monthly_opd_by_department') }}"; // New URL
+        const dailyOpdStatsUrl = "{{ url_for('get_daily_opd_by_department') }}"; 
+        const monthlyOpdStatsUrl = "{{ url_for('get_monthly_opd_by_department') }}"; 
         const inventoryChartDataUrl = "{{ url_for('get_inventory_chart_data') }}";
         const lowStockItemsUrl = "{{ url_for('get_low_stock_items') }}";
 
         const LOW_STOCK_THRESHOLD_JS = "{{ LOW_STOCK_THRESHOLD | default(10) }}";
 
-        // Declare admissionsChart here so it's in a scope accessible globally by script.js
-        // It will be initialized within script.js
+        
         var admissionsChart;
         var dailyOpdChart;
         var monthlyOpdChart;

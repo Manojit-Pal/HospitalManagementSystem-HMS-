@@ -292,11 +292,11 @@
                 {# --- NEW: Add Register New Patient Button above the list, centered --- #}
                 {# Assuming 'can_register_patient' is passed from backend based on user type #}
                 {# Or you can use a simple check like {% if session.get('user_id') %} if any logged-in user can register #}
-                {% if session.get('user_type') == 'hospital' %} {# Example: Only show for hospital users #}
+                
                 <div class="register-patient-button-container">
                     <a href="{{ url_for('add_patient') }}" class="btn btn-primary">Register New Patient</a>
                 </div>
-                {% endif %}
+                
                 {# --- END NEW --- #}
 
 
