@@ -185,7 +185,7 @@
             /* Use muted text color variable */
         }
 
-        /* --- NEW: Style for the container holding the Join OPD Queue button --- */
+        /* Style for the container holding the Join OPD Queue button */
         .join-opd-button-container {
             display: flex;
             justify-content: center;
@@ -195,7 +195,21 @@
             margin-bottom: 20px;
             /* Space below the button */
         }
-        /* --- END NEW --- */
+
+        /* Styles for the department filter dropdown */
+        .department-filter-container {
+            margin-bottom: 20px;
+            /* Space below the filter */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px; 
+    
+        }
+        .department-filter-container label {
+             margin-bottom: 0; /* Remove bottom margin for label */
+        }
+
     </style>
 </head>
 
@@ -291,22 +305,36 @@
             <div class="card-body"> {# Wrap content in card-body #}
                 <h1>OPD Queue</h1>
 
-                {# --- NEW: Add Join OPD Queue Button above the list, centered --- #}
+                {# --- Add Join OPD Queue Button above the list, centered --- #}
                 {# Assuming any logged-in user can join the queue, or add a check like {% if session.get('user_id') %} #}
                 <div class="join-opd-button-container">
                     <a href="{{ url_for('join_opd_queue') }}" class="btn btn-primary">Join OPD Queue</a>
                 </div>
-                {# --- END NEW --- #}
+                {# --- End NEW --- #}
+
+                {# --- Department Filter Dropdown --- #}
+                <div class="department-filter-container">
+                    <label for="departmentFilter" class="form-label">Filter by Department:</label>
+                    <select id="departmentFilter" class="form-select w-auto"> {# w-auto makes dropdown width fit content #}
+                        {% for dept in departments %}
+                            <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>
+                                {% if dept == 'All' %}View All{% else %}{{ dept }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {# --- End Department Filter Dropdown --- #}
 
 
                 {% if grouped_queue | length == 0 %} {# Display message if no departments with patients #}
-                <p class="text-center text-muted">No patients in the OPD queue across all departments.</p>
+                <p class="text-center text-muted">No patients in the OPD queue across all departments{% if selected_department != 'All' %} for {{ selected_department }}{% endif %}.</p>
                 {% else %}
                 {# Loop through departments in the grouped_queue dictionary #}
                 {% for department, queue_items in grouped_queue.items() %}
                 <h2 class="department-heading">{{ department }}</h2> {# Display department heading #}
 
-                {% if queue_items | length == 0 %} {# Should not happen if grouped_queue only has departments with items, but good fallback #}
+                {# Should not happen if grouped_queue only has departments with items, but good fallback #}
+                {% if queue_items | length == 0 %}
                 <p class="text-center text-muted empty-department-message">No patients in the {{ department }} queue.</p>
                 {% else %}
                 <div class="table-responsive"> {# Make table responsive on small screens #}
@@ -371,10 +399,8 @@
 
 
                 {# --- Keep Back to Dashboard button at the bottom --- #}
-                <div class="mt-4"> {# Add margin top #}
-                    {# Removed the Join OPD Queue button from here #}
-                    {# Link back to index/dashboard #}
-                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
+                <div class="mt-4 text-center"> {# Add margin top and center the button #}
+                     <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Dashboard</a>
                 </div>
                 {# --- END Keep Back to Dashboard button at the bottom --- #}
 
@@ -435,6 +461,8 @@
         const admissionsDataUrl = "{{ url_for('get_admissions_data') }}";
         const updateOpdStatusUrl = "{{ url_for('update_opd_status') }}"; // URL for updating status
         const deductInventoryUrl = "{{ url_for('deduct_inventory_item') }}"; // Include if script.js needs it
+        const viewOpdQueueUrl = "{{ url_for('view_opd_queue') }}"; // URL for viewing OPD queue (for filtering)
+
         // Add any other URLs needed by script.js here
 
         // Declare chart variables globally if script.js expects them (only if script.js is shared)
@@ -479,7 +507,7 @@
                              // Optionally show an error message
                              alert("An internal error occurred (status update URL missing).");
                              return;
-                        }
+                         }
 
 
                         fetch(updateOpdStatusUrl, {
@@ -566,6 +594,22 @@
                  console.warn("OPD queue main content container not found for status update logic.");
             }
             // --- End Status Update Logic ---
+
+
+            // --- Department Filter Logic ---
+            const departmentFilter = document.getElementById('departmentFilter');
+
+            if (departmentFilter) {
+                departmentFilter.addEventListener('change', function() {
+                    const selectedDepartment = this.value;
+                    // Redirect to the OPD queue page with the selected department as a query parameter
+                    // This will trigger a full page reload, which is simpler than AJAX table updates
+                    window.location.href = viewOpdQueueUrl + '?department=' + encodeURIComponent(selectedDepartment);
+                });
+            } else {
+                console.warn("Department filter dropdown not found.");
+            }
+            // --- End Department Filter Logic ---
 
 
             // --- AOS Initialization ---

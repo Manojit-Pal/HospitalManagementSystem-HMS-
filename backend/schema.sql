@@ -11,7 +11,7 @@ DROP TABLE IF EXISTS beds;
 DROP TABLE IF EXISTS admissions;
 DROP TABLE IF EXISTS patients;
 
--- Patients table (existing)
+-- Patients table
 CREATE TABLE patients (
     patient_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE patients (
     medical_history TEXT
 );
 
--- OPD queue table (existing)
+-- OPD queue table
 CREATE TABLE opd_queue (
     queue_id TEXT PRIMARY KEY,
     patient_id TEXT NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE opd_queue (
     FOREIGN KEY (patient_id) REFERENCES patients(patient_id)
 );
 
--- Beds table (existing)
+-- Beds table
 CREATE TABLE beds (
     bed_id TEXT PRIMARY KEY,
     ward TEXT NOT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE beds (
     FOREIGN KEY (current_patient_id) REFERENCES patients(patient_id)
 );
 
--- Admissions table (existing)
+-- Admissions table
 CREATE TABLE admissions (
     admission_id TEXT PRIMARY KEY,
     patient_id TEXT NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE admissions (
     FOREIGN KEY (bed_id) REFERENCES beds(bed_id)
 );
 
--- Inventory table (existing)
+-- Inventory table
 CREATE TABLE inventory (
     item_id TEXT PRIMARY KEY,
     item_name TEXT NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE inventory (
     unit TEXT
 );
 
--- Users table (extended for base users)
+-- Users table
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL UNIQUE,
@@ -90,7 +90,7 @@ CREATE TABLE doctor_profiles (
 
 CREATE TABLE patient_profiles (
     user_id INTEGER PRIMARY KEY,
-    -- these fields duplicate some in patients, but link user to patient record
+    
     age INTEGER,
     gender TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id)
